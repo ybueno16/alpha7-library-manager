@@ -1,0 +1,1 @@
+# alpha7-library-manager
