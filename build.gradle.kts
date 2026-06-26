@@ -1,6 +1,7 @@
 plugins {
     id("java")
     id("jacoco")
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 group = "br.com.yuri.alpha7"
@@ -51,11 +52,24 @@ tasks.test {
     finalizedBy(tasks.jacocoTestReport)
 }
 
+tasks.shadowJar {
+    archiveBaseName.set("alpha7-library-manager")
+    archiveClassifier.set("")
+    manifest {
+        attributes["Main-Class"] = "br.com.yuri.alpha7.Main"
+    }
+}
+
+tasks.build {
+    dependsOn(tasks.shadowJar)
+}
+
 tasks.jacocoTestReport {
     dependsOn(tasks.test)
     reports {
         xml.required.set(true)
         html.required.set(true)
+        csv.required.set(true)
     }
     classDirectories.setFrom(files(classDirectories.files.map {
         fileTree(it) {
