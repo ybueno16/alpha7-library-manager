@@ -86,24 +86,18 @@ public class ImportUseCase {
 
         List<Autor> authors = resolveAuthors(authorNames);
 
-        Optional<Livro> existingBook = livroRepository.findByIsbn(isbn);
+        Livro livro = livroRepository.findByIsbn(isbn)
+                .orElseGet(() -> {
+                    Livro novo = new Livro();
+                    novo.setIsbn(isbn);
+                    return novo;
+                });
 
-        if (existingBook.isPresent()) {
-            Livro livro = existingBook.get();
-            livro.setTitulo(titulo);
-            livro.setEditora(editora);
-            livro.setAutores(authors);
-            assignOptionalFields(livro, publicationDate, language, pageCount);
-            livroRepository.save(livro);
-        } else {
-            Livro livro = new Livro();
-            livro.setIsbn(isbn);
-            livro.setTitulo(titulo);
-            livro.setEditora(editora);
-            livro.setAutores(authors);
-            assignOptionalFields(livro, publicationDate, language, pageCount);
-            livroRepository.save(livro);
-        }
+        livro.setTitulo(titulo);
+        livro.setEditora(editora);
+        livro.setAutores(authors);
+        assignOptionalFields(livro, publicationDate, language, pageCount);
+        livroRepository.save(livro);
     }
 
     private List<Autor> resolveAuthors(String authorNames) {
