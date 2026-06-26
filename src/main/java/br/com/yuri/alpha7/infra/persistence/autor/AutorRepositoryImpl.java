@@ -6,45 +6,55 @@ import br.com.yuri.alpha7.infra.persistence.BaseRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class AutorRepositoryImpl extends BaseRepository implements AutorRepository {
+
     @Override
     public Autor save(Autor autor) {
-       return executeInTransaction(entityManager -> entityManager.merge(autor));
+        AutorEntity entity = AutorMapper.toEntity(autor);
+        AutorEntity saved = executeInTransaction(em -> em.merge(entity));
+        return AutorMapper.toDomain(saved);
     }
 
     @Override
     public Optional<Autor> findById(Long id) {
-        return executeQuery(entityManager -> Optional.ofNullable(entityManager.find(Autor.class, id)));
+        return executeQuery(em -> {
+            AutorEntity entity = em.find(AutorEntity.class, id);
+            return Optional.ofNullable(AutorMapper.toDomain(entity));
+        });
     }
 
     @Override
     public Optional<Autor> findByNome(String nome) {
-        return executeQuery(entityManager -> {
-            List<Autor> results = entityManager.createQuery(
-                    "SELECT a FROM Autor a WHERE a.nome = :nome", Autor.class)
+        return executeQuery(em -> {
+            List<AutorEntity> results = em.createQuery(
+                            "SELECT a FROM Autor a WHERE a.nome = :nome", AutorEntity.class)
                     .setParameter("nome", nome)
                     .getResultList();
-            return Optional.ofNullable(
-                    results.isEmpty() ? null : results.get(0)
-            );
+            if (results.isEmpty()) {
+                return Optional.empty();
+            }
+            return Optional.of(AutorMapper.toDomain(results.get(0)));
         });
     }
 
     @Override
     public List<Autor> findAll() {
-        return executeQuery(
-                entityManager -> entityManager.createQuery
-                        ("SELECT a FROM Autor a", Autor.class).getResultList()
-        );
+        return executeQuery(em ->
+                em.createQuery("SELECT a FROM Autor a", AutorEntity.class)
+                        .getResultList()
+                        .stream()
+                        .map(AutorMapper::toDomain)
+                        .collect(Collectors.toList()));
     }
 
     @Override
     public void delete(Long id) {
-        executeInTransaction(entityManager -> {
-            Autor autor = entityManager.find(Autor.class, id);
-            if (autor != null) {
-                entityManager.remove(autor);
+        executeInTransaction(em -> {
+            AutorEntity entity = em.find(AutorEntity.class, id);
+            if (entity != null) {
+                em.remove(entity);
             }
             return null;
         });

@@ -5,29 +5,41 @@ import br.com.yuri.alpha7.domain.livro.repository.LivroRepository;
 import br.com.yuri.alpha7.domain.livro.vo.ISBN;
 import br.com.yuri.alpha7.infra.persistence.BaseRepository;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class LivroRepositoryImpl extends BaseRepository implements LivroRepository {
+
     @Override
     public Livro save(Livro livro) {
-        return executeInTransaction(entityManager -> entityManager.merge(livro));
+        LivroEntity entity = LivroMapper.toEntity(livro);
+        LivroEntity saved = executeInTransaction(em -> em.merge(entity));
+        return LivroMapper.toDomain(saved);
     }
 
     @Override
     public Optional<Livro> findById(Long id) {
-        return executeQuery(entityManager -> Optional.ofNullable(entityManager.find(Livro.class, id)));
+        return executeQuery(em -> {
+            LivroEntity entity = em.find(LivroEntity.class, id);
+            return Optional.ofNullable(LivroMapper.toDomain(entity));
+        });
     }
 
     @Override
     public Optional<Livro> findByIsbn(ISBN isbn) {
-        return executeQuery(entityManager -> {
-            List<Livro> result = entityManager.createQuery(
-                            "SELECT l FROM Livro l WHERE l.isbn = :isbn", Livro.class)
+        return executeQuery(em -> {
+            List<LivroEntity> result = em.createQuery(
+                            "SELECT l FROM Livro l " +
+                            "LEFT JOIN FETCH l.editora " +
+                            "LEFT JOIN FETCH l.autores " +
+                            "WHERE l.isbn = :isbn", LivroEntity.class)
                     .setParameter("isbn", isbn)
                     .getResultList();
-            return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
+            if (result.isEmpty()) {
+                return Optional.empty();
+            }
+            return Optional.of(LivroMapper.toDomain(result.get(0)));
         });
     }
 
@@ -36,11 +48,13 @@ public class LivroRepositoryImpl extends BaseRepository implements LivroReposito
         return executeQuery(em ->
                 em.createQuery(
                                 "SELECT DISTINCT l FROM Livro l " +
-                                        "LEFT JOIN FETCH l.editora " +
-                                        "LEFT JOIN FETCH l.autores " +
-                                        "ORDER BY l.titulo", Livro.class)
+                                "LEFT JOIN FETCH l.editora " +
+                                "LEFT JOIN FETCH l.autores " +
+                                "ORDER BY l.titulo", LivroEntity.class)
                         .getResultList()
-        );
+                        .stream()
+                        .map(LivroMapper::toDomain)
+                        .collect(Collectors.toList()));
     }
 
     @Override
@@ -48,25 +62,27 @@ public class LivroRepositoryImpl extends BaseRepository implements LivroReposito
         return executeQuery(em ->
                 em.createQuery(
                                 "SELECT DISTINCT l FROM Livro l " +
-                                        "LEFT JOIN FETCH l.editora e " +
-                                        "LEFT JOIN FETCH l.autores a " +
-                                        "WHERE LOWER(l.titulo)    LIKE LOWER(:termo) " +
-                                        "OR    LOWER(l.idioma)    LIKE LOWER(:termo) " +
-                                        "OR    LOWER(e.nome)      LIKE LOWER(:termo) " +
-                                        "OR    LOWER(a.nome)      LIKE LOWER(:termo) " +
-                                        "OR    CAST(l.isbn AS string) LIKE LOWER(:termo) " +
-                                        "ORDER BY l.titulo", Livro.class)
+                                "LEFT JOIN FETCH l.editora e " +
+                                "LEFT JOIN FETCH l.autores a " +
+                                "WHERE LOWER(l.titulo)    LIKE LOWER(:termo) " +
+                                "OR    LOWER(l.idioma)    LIKE LOWER(:termo) " +
+                                "OR    LOWER(e.nome)      LIKE LOWER(:termo) " +
+                                "OR    LOWER(a.nome)      LIKE LOWER(:termo) " +
+                                "OR    CAST(l.isbn AS string) LIKE LOWER(:termo) " +
+                                "ORDER BY l.titulo", LivroEntity.class)
                         .setParameter("termo", "%" + termo + "%")
                         .getResultList()
-        );
+                        .stream()
+                        .map(LivroMapper::toDomain)
+                        .collect(Collectors.toList()));
     }
 
     @Override
     public void delete(Long id) {
-        executeInTransaction(entityManager -> {
-            Livro livro = entityManager.find(Livro.class, id);
-            if (livro != null) {
-                entityManager.remove(livro);
+        executeInTransaction(em -> {
+            LivroEntity entity = em.find(LivroEntity.class, id);
+            if (entity != null) {
+                em.remove(entity);
             }
             return null;
         });

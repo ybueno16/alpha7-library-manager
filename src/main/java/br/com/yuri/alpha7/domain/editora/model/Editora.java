@@ -1,25 +1,14 @@
 package br.com.yuri.alpha7.domain.editora.model;
 
-import org.hibernate.annotations.Cache;
-import org.hibernate.annotations.CacheConcurrencyStrategy;
-
-import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Objects;
 
 /**
  * Representa a editora responsável pela publicação de um livro.
  */
-@Entity
-@Table(name = "editora")
-@Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
 public class Editora implements Serializable {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(nullable = false)
     private String nome;
 
     private static final long serialVersionUID = 1L;

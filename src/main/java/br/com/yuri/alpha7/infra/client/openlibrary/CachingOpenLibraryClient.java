@@ -28,14 +28,11 @@ public class CachingOpenLibraryClient implements OpenLibraryClient {
         }
         try {
             Optional<Livro> result = delegate.findByIsbn(isbn);
-            CachedBookLookup lookup = result
-                    .map(CachedBookLookup::found)
-                    .orElseGet(CachedBookLookup::notFound);
-            cache.put(isbn, lookup);
+            result.ifPresent(livro -> cache.put(isbn, CachedBookLookup.found(livro)));
             return result;
         } catch (OpenLibraryUnavailableException e) {
             logger.warn("OpenLibrary unavailable for ISBN {}: {}", isbn.getValue(), e.getMessage());
-            return Optional.empty();
+            throw e;
         }
     }
 }

@@ -7,3 +7,8 @@ CREATE TABLE livro (
     idioma           VARCHAR(50),
     editora_id       BIGINT       REFERENCES editora(id) ON DELETE SET NULL
 );
+
+-- UNIQUE em isbn já cria índice implícito; criamos apenas os de leitura frequente
+CREATE INDEX idx_livro_titulo_lower ON livro (LOWER(titulo));
+CREATE INDEX idx_livro_idioma_lower  ON livro (LOWER(idioma));
+CREATE INDEX idx_livro_editora_id    ON livro (editora_id);

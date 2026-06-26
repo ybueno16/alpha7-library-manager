@@ -4,46 +4,57 @@ import br.com.yuri.alpha7.domain.editora.model.Editora;
 import br.com.yuri.alpha7.domain.editora.repository.EditoraRepository;
 import br.com.yuri.alpha7.infra.persistence.BaseRepository;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class EditoraRepositoryImpl extends BaseRepository implements EditoraRepository {
+
     @Override
     public Editora save(Editora editora) {
-        return executeInTransaction(entityManager -> entityManager.merge(editora));
+        EditoraEntity entity = EditoraMapper.toEntity(editora);
+        EditoraEntity saved = executeInTransaction(em -> em.merge(entity));
+        return EditoraMapper.toDomain(saved);
     }
 
     @Override
     public Optional<Editora> findById(Long id) {
-        return executeQuery(entityManager -> Optional.ofNullable(entityManager.find(Editora.class, id)));
+        return executeQuery(em -> {
+            EditoraEntity entity = em.find(EditoraEntity.class, id);
+            return Optional.ofNullable(EditoraMapper.toDomain(entity));
+        });
     }
 
     @Override
     public Optional<Editora> findByNome(String nome) {
-        return executeQuery(entityManager -> {
-            List<Editora> results = entityManager.createQuery(
-                    "SELECT e FROM Editora e WHERE e.nome = :nome", Editora.class)
+        return executeQuery(em -> {
+            List<EditoraEntity> results = em.createQuery(
+                            "SELECT e FROM Editora e WHERE e.nome = :nome", EditoraEntity.class)
                     .setParameter("nome", nome)
                     .getResultList();
-            return Optional.ofNullable(results.isEmpty() ? null : results.get(0));
+            if (results.isEmpty()) {
+                return Optional.empty();
+            }
+            return Optional.of(EditoraMapper.toDomain(results.get(0)));
         });
     }
 
     @Override
     public List<Editora> findAll() {
-        return executeQuery(
-                entityManager -> entityManager.createQuery(
-                        "SELECT e FROM Editora e", Editora.class)
-                        .getResultList());
+        return executeQuery(em ->
+                em.createQuery("SELECT e FROM Editora e", EditoraEntity.class)
+                        .getResultList()
+                        .stream()
+                        .map(EditoraMapper::toDomain)
+                        .collect(Collectors.toList()));
     }
 
     @Override
     public void delete(Long id) {
-        executeInTransaction(entityManager -> {
-            Editora editora = entityManager.find(Editora.class, id);
-            if (editora != null) {
-                entityManager.remove(editora);
+        executeInTransaction(em -> {
+            EditoraEntity entity = em.find(EditoraEntity.class, id);
+            if (entity != null) {
+                em.remove(entity);
             }
             return null;
         });

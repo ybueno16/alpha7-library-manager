@@ -6,9 +6,9 @@
                                  http://xmlns.jcp.org/xml/ns/persistence/persistence_2_2.xsd">
 
     <persistence-unit name="libraryPU" transaction-type="RESOURCE_LOCAL">
-        <class>br.com.yuri.alpha7.domain.livro.model.Livro</class>
-        <class>br.com.yuri.alpha7.domain.autor.model.Autor</class>
-        <class>br.com.yuri.alpha7.domain.editora.model.Editora</class>
+        <class>br.com.yuri.alpha7.infra.persistence.livro.LivroEntity</class>
+        <class>br.com.yuri.alpha7.infra.persistence.autor.AutorEntity</class>
+        <class>br.com.yuri.alpha7.infra.persistence.editora.EditoraEntity</class>
         <class>br.com.yuri.alpha7.infra.persistence.converter.IsbnConverter</class>
         <properties>
             <property name="hibernate.dialect" value="org.hibernate.dialect.PostgreSQLDialect"/>

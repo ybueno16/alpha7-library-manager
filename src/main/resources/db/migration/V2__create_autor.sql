@@ -5,3 +5,5 @@ CREATE TABLE autor (
     data_falecimento DATE,
     bio              TEXT
 );
+
+CREATE INDEX idx_autor_nome ON autor (nome);

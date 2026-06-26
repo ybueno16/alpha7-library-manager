@@ -1,27 +1,36 @@
-package br.com.yuri.alpha7.domain.autor.model;
+package br.com.yuri.alpha7.infra.persistence.autor;
 
+import org.hibernate.annotations.Cache;
+import org.hibernate.annotations.CacheConcurrencyStrategy;
+
+import javax.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDate;
-import java.util.Objects;
 
-/**
- * Representa um autor de livros no acervo da biblioteca.
- */
-public class Autor implements Serializable {
+@Entity(name = "Autor")
+@Table(name = "autor")
+@Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
+public class AutorEntity implements Serializable {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false)
     private String nome;
+
+    @Column(name = "data_nascimento")
     private LocalDate dataNascimento;
+
+    @Column(name = "data_falecimento")
     private LocalDate dataFalecimento;
+
+    @Column(columnDefinition = "TEXT")
     private String bio;
 
     private static final long serialVersionUID = 1L;
 
-    public Autor() {}
-
-    public Autor(String nome) {
-        this.nome = nome;
-    }
+    public AutorEntity() {}
 
     public Long getId() {
         return id;
@@ -61,22 +70,5 @@ public class Autor implements Serializable {
 
     public void setBio(String bio) {
         this.bio = bio;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Autor)) return false;
-        return Objects.equals(nome, ((Autor) o).nome);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(nome);
-    }
-
-    @Override
-    public String toString() {
-        return nome;
     }
 }
