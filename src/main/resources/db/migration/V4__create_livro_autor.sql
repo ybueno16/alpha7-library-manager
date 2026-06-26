@@ -4,5 +4,4 @@ CREATE TABLE livro_autor (
     PRIMARY KEY (livro_id, autor_id)
 );
 
--- livro_id já coberto pela PK; índice reverso para lookup autor -> livros
 CREATE INDEX idx_livro_autor_autor_id ON livro_autor (autor_id);
