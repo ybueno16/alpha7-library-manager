@@ -78,34 +78,29 @@ class CachingOpenLibraryClientTest {
     @DisplayName(
             "Given no cached result and the delegate returns empty," +
             " when findByIsbn is called," +
-            " then notFound is cached and empty is returned"
+            " then empty is returned without caching"
     )
-    void shouldCacheNotFoundWhenDelegateReturnsEmpty() {
+    void shouldNotCacheWhenDelegateReturnsEmpty() {
         when(cache.get(VALID_ISBN)).thenReturn(null);
         when(delegate.findByIsbn(VALID_ISBN)).thenReturn(Optional.empty());
 
         Optional<Livro> result = client.findByIsbn(VALID_ISBN);
 
         assertFalse(result.isPresent());
-
-        ArgumentCaptor<CachedBookLookup> captor = ArgumentCaptor.forClass(CachedBookLookup.class);
-        verify(cache).put(eq(VALID_ISBN), captor.capture());
-        assertFalse(captor.getValue().toOptional().isPresent());
+        verify(cache, never()).put(any(), any());
     }
 
     @Test
     @DisplayName(
             "Given no cached result and the delegate throws OpenLibraryUnavailableException," +
             " when findByIsbn is called," +
-            " then empty is returned without caching"
+            " then the exception is propagated without caching"
     )
-    void shouldReturnEmptyAndNotCacheWhenDelegateThrows() {
+    void shouldPropagateExceptionAndNotCacheWhenDelegateThrows() {
         when(cache.get(VALID_ISBN)).thenReturn(null);
         when(delegate.findByIsbn(VALID_ISBN)).thenThrow(new OpenLibraryUnavailableException("timeout"));
 
-        Optional<Livro> result = client.findByIsbn(VALID_ISBN);
-
-        assertFalse(result.isPresent());
+        assertThrows(OpenLibraryUnavailableException.class, () -> client.findByIsbn(VALID_ISBN));
         verify(cache, never()).put(any(), any());
     }
 }

@@ -14,8 +14,10 @@ public class LivroRepositoryImpl extends BaseRepository implements LivroReposito
     @Override
     public Livro save(Livro livro) {
         LivroEntity entity = LivroMapper.toEntity(livro);
-        LivroEntity saved = executeInTransaction(em -> em.merge(entity));
-        return LivroMapper.toDomain(saved);
+        return executeInTransaction(em -> {
+            LivroEntity saved = em.merge(entity);
+            return LivroMapper.toDomain(saved);
+        });
     }
 
     @Override

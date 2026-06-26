@@ -28,7 +28,7 @@ public class BookCrudUseCase {
      */
     public Livro save(Livro livro) throws IsbnInvalidoException {
         Optional<Livro> existing = livroRepository.findByIsbn(livro.getIsbn());
-        if (existing.isPresent() && !existing.get().getId().equals(livro.getId())) {
+        if (existing.isPresent() && isbnBelongsToAnotherBook(livro.getId(), existing.get().getId())) {
             throw new IsbnInvalidoException("Book with this ISBN is already registered: " + livro.getIsbn());
         }
         return livroRepository.save(livro);
@@ -57,5 +57,9 @@ public class BookCrudUseCase {
             throw new BookNotFoundException("Book not found");
         }
         livroRepository.delete(id);
+    }
+
+    private boolean isbnBelongsToAnotherBook(Long newId, Long existingId) {
+        return newId == null || !newId.equals(existingId);
     }
 }
