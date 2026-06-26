@@ -20,6 +20,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Caso de uso para importação em lote de livros a partir de um arquivo CSV.
+ * Cada linha é processada dentro de uma transação independente.
+ * Livros já existentes (mesmo ISBN) são atualizados; novos são inseridos.
+ *
+ * <p>Formato esperado do CSV (com cabeçalho):
+ * {@code titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas}
+ */
 public class ImportUseCase {
 
     private final UnitOfWork unitOfWork;
@@ -39,6 +47,12 @@ public class ImportUseCase {
         this.editoraRepository = editoraRepository;
     }
 
+    /**
+     * Processa o arquivo CSV e importa os livros para o acervo.
+     *
+     * @param csv stream do arquivo CSV
+     * @return resultado da importação com contadores de sucesso e erros
+     */
     public ImportResult importCsv(InputStream csv) {
         ImportResult result = new ImportResult();
         Iterable<CSVRecord> records = readCsv(csv);

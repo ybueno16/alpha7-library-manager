@@ -3,12 +3,16 @@ package br.com.yuri.alpha7;
 import br.com.yuri.alpha7.config.InfrastructureConfig;
 import br.com.yuri.alpha7.config.RepositoryConfig;
 import br.com.yuri.alpha7.config.UseCaseConfig;
+import br.com.yuri.alpha7.presentation.MainWindow;
+import com.formdev.flatlaf.FlatDarkLaf;
 
 import javax.swing.SwingUtilities;
 
 public class Main {
 
     public static void main(String[] args) {
+        FlatDarkLaf.setup();
+
         InfrastructureConfig infra = new InfrastructureConfig();
         RepositoryConfig repos = new RepositoryConfig();
         UseCaseConfig useCases = new UseCaseConfig(infra, repos);
@@ -18,8 +22,6 @@ public class Main {
             infra.shutdown();
         }));
 
-        SwingUtilities.invokeLater(() -> {
-            // TODO Fase 6: new MainWindow(useCases).setVisible(true);
-        });
+        SwingUtilities.invokeLater(() -> new MainWindow(useCases).setVisible(true));
     }
 }

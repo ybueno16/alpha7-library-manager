@@ -1,6 +1,7 @@
 package br.com.yuri.alpha7.infra.client.openlibrary.mapper;
 
 import br.com.yuri.alpha7.domain.autor.model.Autor;
+import br.com.yuri.alpha7.domain.editora.model.Editora;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
 import br.com.yuri.alpha7.domain.livro.vo.ISBN;
 import br.com.yuri.alpha7.infra.client.openlibrary.dto.OpenLibraryAuthorResponse;
@@ -8,6 +9,7 @@ import br.com.yuri.alpha7.infra.client.openlibrary.dto.OpenLibraryBookResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -19,7 +21,15 @@ public class OpenLibraryBookMapper {
 
     private static final DateTimeFormatter[] PUBLISH_DATE_FORMATS = {
             DateTimeFormatter.ISO_LOCAL_DATE,
-            DateTimeFormatter.ofPattern("MMM dd, yyyy", Locale.ENGLISH)
+            DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH),
+            DateTimeFormatter.ofPattern("MMM d, yyyy",  Locale.ENGLISH),
+            DateTimeFormatter.ofPattern("MMMM dd, yyyy", Locale.ENGLISH),
+            DateTimeFormatter.ofPattern("MMM dd, yyyy",  Locale.ENGLISH)
+    };
+
+    private static final DateTimeFormatter[] PUBLISH_MONTH_YEAR_FORMATS = {
+            DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH),
+            DateTimeFormatter.ofPattern("MMM yyyy",  Locale.ENGLISH)
     };
 
     private static final DateTimeFormatter[] AUTHOR_DATE_FORMATS = {
@@ -38,6 +48,9 @@ public class OpenLibraryBookMapper {
         parsePublishDate(response.getPublishDate()).ifPresent(livro::setDataPublicacao);
         extractLanguage(response.getLanguages()).ifPresent(livro::setIdioma);
         livro.setAutores(toAutores(authors));
+        if (!response.getPublishers().isEmpty()) {
+            livro.setEditora(new Editora(response.getPublishers().get(0)));
+        }
         return livro;
     }
 
@@ -58,13 +71,30 @@ public class OpenLibraryBookMapper {
         if (rawDate == null || rawDate.trim().isEmpty()) {
             return Optional.empty();
         }
+        String date = rawDate.trim();
+
         for (DateTimeFormatter formatter : PUBLISH_DATE_FORMATS) {
             try {
-                return Optional.of(LocalDate.parse(rawDate.trim(), formatter));
-            } catch (DateTimeParseException notMatched) {
-                continue;
+                return Optional.of(LocalDate.parse(date, formatter));
+            } catch (DateTimeParseException ignored) {
             }
         }
+
+        for (DateTimeFormatter formatter : PUBLISH_MONTH_YEAR_FORMATS) {
+            try {
+                return Optional.of(YearMonth.parse(date, formatter).atDay(1));
+            } catch (DateTimeParseException ignored) {
+            }
+        }
+
+        try {
+            int year = Integer.parseInt(date);
+            if (year >= 1000 && year <= 9999) {
+                return Optional.of(LocalDate.of(year, 1, 1));
+            }
+        } catch (NumberFormatException ignored) {
+        }
+
         return Optional.empty();
     }
 
