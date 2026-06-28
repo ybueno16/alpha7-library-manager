@@ -73,7 +73,14 @@ tasks.jacocoTestReport {
     }
     classDirectories.setFrom(files(classDirectories.files.map {
         fileTree(it) {
-            exclude("**/config/**", "**/Main.class")
+            exclude(
+                "**/config/**",
+                "**/Main.class",
+                "**/presentation/MainWindow.class",
+                "**/presentation/livro/view/LivroFormDialog.class",
+                "**/presentation/livro/view/LivroListPanel.class",
+                "**/presentation/livro/presenter/LivroTableModel.class"
+            )
         }
     }))
 }

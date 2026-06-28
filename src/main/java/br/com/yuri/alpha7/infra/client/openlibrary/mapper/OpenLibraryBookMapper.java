@@ -17,6 +17,18 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
+/**
+ * Converte respostas da API da OpenLibrary em objetos de domínio.
+ *
+ * <p>A OpenLibrary não segue um padrão único de data: o campo {@code publish_date} pode vir como
+ * ano ({@code "2003"}), mês e ano ({@code "August 2003"}), data completa em inglês
+ * ({@code "August 1, 2003"}) ou ISO-8601 ({@code "2003-08-01"}). Esta classe tenta cada um
+ * dos formatos conhecidos em sequência e ignora o campo se nenhum coincidir.
+ *
+ * <p>O idioma é extraído da referência ({@code /languages/eng → "eng"}); a editora é o primeiro
+ * elemento da lista {@code publishers}. A bio do autor pode vir como string simples ou como
+ * objeto JSON com campo {@code value} — ambos os casos são tratados.
+ */
 public class OpenLibraryBookMapper {
 
     private static final DateTimeFormatter[] PUBLISH_DATE_FORMATS = {

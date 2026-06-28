@@ -9,6 +9,19 @@ import javax.cache.spi.CachingProvider;
 import java.net.URI;
 import java.net.URL;
 
+/**
+ * Singleton que inicializa e fornece o {@link CacheManager} da JCache (JSR-107) usado para
+ * o cache de consultas ISBN da OpenLibrary.
+ *
+ * <p>Este provider gerencia exclusivamente o cache de ISBN ({@code isbn-api-cache}), configurado
+ * em {@code ehcache-isbn-cache.xml}. Ele é distinto do cache L2 do Hibernate — que armazena
+ * entidades JPA e é configurado em {@code ehcache.xml} e inicializado por {@link br.com.yuri.alpha7.infra.persistence.HibernateUtil}.
+ *
+ * <p>A inicialização é thread-safe via double-checked locking com campo {@code volatile}.
+ * O método {@link #shutdown()} deve ser chamado ao encerrar a aplicação (veja
+ * {@link br.com.yuri.alpha7.config.InfrastructureConfig#shutdown()}) para fechar conexões e
+ * liberar recursos do provider Ehcache.
+ */
 public class CacheManagerProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(CacheManagerProvider.class);
@@ -35,7 +48,7 @@ public class CacheManagerProvider {
             cacheManager.close();
         }
         cacheManager = null;
-        logger.info("CacheManagerProvider encerrado.");
+        logger.info("Cache de ISBN encerrado");
     }
 
     private static CacheManager initialize() {
@@ -46,14 +59,15 @@ public class CacheManagerProvider {
                 throw new IllegalStateException("Arquivo de configuração não encontrado no classpath: " + CONFIG_FILE);
             }
 
+            logger.debug("Carregando configuração de cache ISBN: {}", configUrl);
             URI configUri = configUrl.toURI();
             CachingProvider cachingProvider = Caching.getCachingProvider();
             CacheManager manager = cachingProvider.getCacheManager(configUri, classLoader);
 
-            logger.info("CacheManagerProvider inicializado com sucesso.");
+            logger.info("Cache de ISBN inicializado via '{}'", CONFIG_FILE);
             return manager;
         } catch (Exception e) {
-            logger.error("Falha ao inicializar o CacheManagerProvider.", e);
+            logger.error("Falha ao inicializar cache de ISBN a partir de '{}': {}", CONFIG_FILE, e.getMessage(), e);
             throw new RuntimeException("Falha ao inicializar o CacheManagerProvider.", e);
         }
     }
