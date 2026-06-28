@@ -8,7 +8,13 @@ import br.com.yuri.alpha7.domain.livro.repository.LivroRepository;
 import java.util.Optional;
 
 /**
- * Caso de uso responsável pelas operações de criação, leitura e exclusão de livros.
+ * Caso de uso responsável por persistir, buscar e remover livros do acervo.
+ *
+ * <p>A principal regra de negócio encapsulada aqui é a unicidade do ISBN: ao salvar um livro,
+ * o caso de uso verifica se já existe outro livro com o mesmo ISBN e rejeita a operação se
+ * for uma criação (id nulo) ou se o ISBN pertencer a um livro diferente do que está sendo editado.
+ * Esse controle previne ISBNs duplicados no acervo mesmo que a constraint do banco de dados
+ * ainda não tenha sido avaliada.
  */
 public class BookCrudUseCase {
 
@@ -42,7 +48,7 @@ public class BookCrudUseCase {
      * @throws BookNotFoundException se o livro não for encontrado
      */
     public Optional<Livro> findById(Long id) throws BookNotFoundException {
-        return Optional.ofNullable(livroRepository.findById(id)
+        return Optional.of(livroRepository.findById(id)
                 .orElseThrow(() -> new BookNotFoundException("Book not found")));
     }
 

@@ -1,10 +1,9 @@
 package br.com.yuri.alpha7.presentation.livro.presenter;
 
+import br.com.yuri.alpha7.application.editora.EditoraUseCase;
 import br.com.yuri.alpha7.application.isbn.IsbnLookupUseCase;
 import br.com.yuri.alpha7.application.livro.BookCrudUseCase;
 import br.com.yuri.alpha7.domain.autor.model.Autor;
-import br.com.yuri.alpha7.domain.editora.model.Editora;
-import br.com.yuri.alpha7.domain.editora.repository.EditoraRepository;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
 import br.com.yuri.alpha7.domain.livro.vo.ISBN;
 import br.com.yuri.alpha7.presentation.livro.view.LivroFormView;
@@ -16,24 +15,44 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Presenter responsável pela lógica do formulário de cadastro e edição de livros.
+ *
+ * <p>Opera em dois modos, configurados pelo chamador antes de exibir a view:
+ * <ul>
+ *   <li>{@link #initCreate()} — modo de criação: nenhum id é mantido; o livro será inserido.</li>
+ *   <li>{@link #initEdit(br.com.yuri.alpha7.domain.livro.model.Livro)} — modo de edição:
+ *       o id original é preservado internamente e atribuído ao livro construído no salvamento,
+ *       garantindo que o repositório faça update em vez de insert.</li>
+ * </ul>
+ *
+ * <p>A busca por ISBN é executada de forma assíncrona em um {@link javax.swing.SwingWorker}
+ * para não bloquear a EDT. O botão de busca é desabilitado durante a requisição e reabilitado
+ * ao término, independentemente de sucesso ou falha.
+ *
+ * <p>As validações realizadas antes de salvar são: título obrigatório, ISBN obrigatório,
+ * ao menos um autor e formato de data (apenas ano {@code yyyy}, se informada). A editora é
+ * resolvida pelo nome via {@link br.com.yuri.alpha7.domain.editora.repository.EditoraRepository}:
+ * se já existir, é reaproveitada; caso contrário, uma nova editora é criada.
+ */
 public class LivroFormPresenter {
 
     private final LivroFormView     view;
     private final BookCrudUseCase   crudUseCase;
     private final IsbnLookupUseCase isbnLookupUseCase;
-    private final EditoraRepository editoraRepository;
+    private final EditoraUseCase    editoraUseCase;
     private final Runnable          onSuccess;
     private Long livroId;
 
     public LivroFormPresenter(LivroFormView view,
                               BookCrudUseCase crudUseCase,
                               IsbnLookupUseCase isbnLookupUseCase,
-                              EditoraRepository editoraRepository,
+                              EditoraUseCase editoraUseCase,
                               Runnable onSuccess) {
         this.view              = view;
         this.crudUseCase       = crudUseCase;
         this.isbnLookupUseCase = isbnLookupUseCase;
-        this.editoraRepository = editoraRepository;
+        this.editoraUseCase    = editoraUseCase;
         this.onSuccess         = onSuccess;
         view.onIsbnLookup(this::lookupByIsbn);
         view.onSave(this::save);
@@ -135,9 +154,7 @@ public class LivroFormPresenter {
 
         String editoraStr = view.getEditora();
         if (!editoraStr.isEmpty()) {
-            Editora editora = editoraRepository.findByNome(editoraStr)
-                    .orElseGet(() -> editoraRepository.save(new Editora(editoraStr)));
-            livro.setEditora(editora);
+            livro.setEditora(editoraUseCase.findOrCreate(editoraStr));
         }
 
         String dateStr = view.getDataPublicacao();

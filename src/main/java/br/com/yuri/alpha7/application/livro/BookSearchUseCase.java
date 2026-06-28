@@ -6,7 +6,12 @@ import br.com.yuri.alpha7.domain.livro.repository.LivroRepository;
 import java.util.List;
 
 /**
- * Caso de uso responsável pela pesquisa de livros no acervo.
+ * Caso de uso responsável pela listagem e pesquisa de livros no acervo.
+ *
+ * <p>A busca por filtro ({@link #findByFiltro}) é case-insensitive e pesquisa simultaneamente
+ * em título, idioma, nome da editora, nome de qualquer autor e ISBN, retornando a união dos
+ * resultados ordenada por título. Isso permite que o usuário encontre um livro digitando
+ * qualquer informação que recorde, sem precisar saber o campo exato.
  */
 public class BookSearchUseCase {
 

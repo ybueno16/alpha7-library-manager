@@ -18,7 +18,7 @@ public class MainWindow extends JFrame {
                 useCases.bookCrud(),
                 useCases.importUseCase(),
                 useCases.isbnLookup(),
-                useCases.editoraRepository()
+                useCases.editoraUseCase()
         );
 
         setDefaultCloseOperation(EXIT_ON_CLOSE);
