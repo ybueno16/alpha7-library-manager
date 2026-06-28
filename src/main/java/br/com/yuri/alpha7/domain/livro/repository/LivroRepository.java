@@ -28,12 +28,21 @@ public interface LivroRepository {
     Optional<Livro> findById(Long id);
 
     /**
-     * Busca um livro pelo ISBN.
+     * Busca um livro pelo ISBN, ignorando registros com soft delete.
      *
      * @param isbn ISBN do livro
-     * @return {@link Optional} com o livro, ou vazio se não encontrado
+     * @return {@link Optional} com o livro ativo, ou vazio se não encontrado
      */
     Optional<Livro> findByIsbn(ISBN isbn);
+
+    /**
+     * Busca um livro pelo ISBN independente do status de exclusão lógica.
+     * Usado pela importação para localizar livros soft-deleted e reativá-los.
+     *
+     * @param isbn ISBN do livro
+     * @return {@link Optional} com o livro (ativo ou excluído), ou vazio se nunca cadastrado
+     */
+    Optional<Livro> findByIsbnIncludingDeleted(ISBN isbn);
 
     /**
      * Retorna todos os livros cadastrados.

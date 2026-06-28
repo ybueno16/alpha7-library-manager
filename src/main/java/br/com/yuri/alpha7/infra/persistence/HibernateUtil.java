@@ -77,21 +77,27 @@ public final class HibernateUtil {
         }
         entityManagerFactory = null;
         dataSource = null;
-        logger.info("HibernateUtil encerrado.");
+        logger.info("Pool HikariCP e EntityManagerFactory encerrados");
     }
 
     private static void initialize() {
         dataSource = buildDataSource();
         runMigrations();
         entityManagerFactory = buildEntityManagerFactory();
-        logger.info("HibernateUtil inicializado com sucesso.");
+        logger.info("Hibernate pronto: persistence unit '{}', pool '{}'", PERSISTENCE_UNIT, dataSource.getPoolName());
     }
 
     private static HikariDataSource buildDataSource() {
+        String jdbcUrl = System.getProperty("db.url",      DEFAULT_JDBC_URL);
+        String dbUser  = System.getProperty("db.user",     DEFAULT_DB_USER);
+        String dbPass  = System.getProperty("db.password", DEFAULT_DB_PASSWORD);
+
+        logger.info("Criando pool HikariCP: url='{}', usuário='{}'", jdbcUrl, dbUser);
+
         HikariConfig config = new HikariConfig();
-        config.setJdbcUrl(System.getProperty("db.url", DEFAULT_JDBC_URL));
-        config.setUsername(System.getProperty("db.user", DEFAULT_DB_USER));
-        config.setPassword(System.getProperty("db.password", DEFAULT_DB_PASSWORD));
+        config.setJdbcUrl(jdbcUrl);
+        config.setUsername(dbUser);
+        config.setPassword(dbPass);
         config.setPoolName("LibraryPool");
         config.setMaximumPoolSize(10);
         config.setMinimumIdle(2);
@@ -102,12 +108,13 @@ public final class HibernateUtil {
     }
 
     private static void runMigrations() {
+        logger.info("Flyway: verificando migrations em '{}'", dataSource.getJdbcUrl());
         Flyway.configure()
                 .dataSource(dataSource)
                 .locations("classpath:db/migration")
                 .load()
                 .migrate();
-        logger.info("Flyway: migrations aplicadas.");
+        logger.info("Flyway: schema atualizado");
     }
 
     private static EntityManagerFactory buildEntityManagerFactory() {
@@ -118,11 +125,15 @@ public final class HibernateUtil {
             URL ehcacheUrl = HibernateUtil.class.getClassLoader().getResource("ehcache.xml");
             if (ehcacheUrl != null) {
                 props.put("hibernate.javax.cache.uri", ehcacheUrl.toURI().toString());
+                logger.debug("Cache L2 Hibernate configurado via '{}'", ehcacheUrl);
+            } else {
+                logger.warn("Arquivo ehcache.xml não encontrado — cache L2 do Hibernate desabilitado");
             }
 
             return Persistence.createEntityManagerFactory(PERSISTENCE_UNIT, props);
         } catch (Exception e) {
-            logger.error("Falha ao criar EntityManagerFactory.", e);
+            logger.error("Falha ao criar EntityManagerFactory para persistence unit '{}': {}",
+                    PERSISTENCE_UNIT, e.getMessage(), e);
             throw new RuntimeException("Falha ao inicializar o Hibernate.", e);
         }
     }

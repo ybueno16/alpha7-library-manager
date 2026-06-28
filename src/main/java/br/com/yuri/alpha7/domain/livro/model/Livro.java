@@ -11,7 +11,18 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Representa um livro no acervo da biblioteca.
+ * Entidade de domínio que representa um livro no acervo da biblioteca.
+ *
+ * <p>A identidade de um livro é determinada pelo seu {@link ISBN}: dois objetos {@code Livro}
+ * com o mesmo ISBN são considerados iguais independentemente dos demais campos. Isso permite
+ * detectar duplicatas antes de persistir e realizar upsert na importação de CSV.
+ *
+ * <p>Os campos {@code autores}, {@code editora}, {@code dataPublicacao}, {@code idioma},
+ * {@code numeroPaginas} e {@code livrosSemelhantes} são opcionais — a única restrição de
+ * domínio é que {@code titulo} e {@code isbn} sejam informados.
+ *
+ * <p>Esta classe é um POJO puro: não contém anotações JPA nem dependências de framework.
+ * A conversão para/de entidade JPA é responsabilidade de {@code LivroMapper}.
  */
 public class Livro implements Serializable {
 

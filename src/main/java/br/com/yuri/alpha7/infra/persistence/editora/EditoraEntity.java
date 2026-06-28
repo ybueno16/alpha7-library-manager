@@ -1,15 +1,15 @@
 package br.com.yuri.alpha7.infra.persistence.editora;
 
+import br.com.yuri.alpha7.infra.persistence.AuditableEntity;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 
 import javax.persistence.*;
-import java.io.Serializable;
 
 @Entity(name = "Editora")
 @Table(name = "editora")
 @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
-public class EditoraEntity implements Serializable {
+public class EditoraEntity extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -17,8 +17,6 @@ public class EditoraEntity implements Serializable {
 
     @Column(nullable = false)
     private String nome;
-
-    private static final long serialVersionUID = 1L;
 
     public EditoraEntity() {}
 

@@ -1,16 +1,16 @@
 package br.com.yuri.alpha7.infra.persistence.autor;
 
+import br.com.yuri.alpha7.infra.persistence.AuditableEntity;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 
 import javax.persistence.*;
-import java.io.Serializable;
 import java.time.LocalDate;
 
 @Entity(name = "Autor")
 @Table(name = "autor")
 @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
-public class AutorEntity implements Serializable {
+public class AutorEntity extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,8 +27,6 @@ public class AutorEntity implements Serializable {
 
     @Column(columnDefinition = "TEXT")
     private String bio;
-
-    private static final long serialVersionUID = 1L;
 
     public AutorEntity() {}
 

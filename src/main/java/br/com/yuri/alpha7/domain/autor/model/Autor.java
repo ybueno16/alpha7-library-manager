@@ -5,7 +5,17 @@ import java.time.LocalDate;
 import java.util.Objects;
 
 /**
- * Representa um autor de livros no acervo da biblioteca.
+ * Entidade de domínio que representa um autor de livros no acervo da biblioteca.
+ *
+ * <p>A identidade de um autor é determinada pelo {@code nome}: dois objetos {@code Autor}
+ * com o mesmo nome são considerados iguais. Isso é usado na importação de CSV e na busca
+ * por ISBN via OpenLibrary para evitar duplicar autores já cadastrados.
+ *
+ * <p>Os campos {@code dataNascimento}, {@code dataFalecimento} e {@code bio} são opcionais
+ * e preenchidos automaticamente quando o livro é obtido via API da OpenLibrary.
+ *
+ * <p>Esta classe é um POJO puro, sem anotações JPA. A conversão para/de entidade JPA é
+ * responsabilidade de {@code AutorMapper}.
  */
 public class Autor implements Serializable {
 

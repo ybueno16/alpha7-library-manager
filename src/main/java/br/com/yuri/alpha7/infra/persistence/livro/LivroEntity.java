@@ -1,13 +1,13 @@
 package br.com.yuri.alpha7.infra.persistence.livro;
 
 import br.com.yuri.alpha7.domain.livro.vo.ISBN;
+import br.com.yuri.alpha7.infra.persistence.AuditableEntity;
 import br.com.yuri.alpha7.infra.persistence.autor.AutorEntity;
 import br.com.yuri.alpha7.infra.persistence.editora.EditoraEntity;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 
 import javax.persistence.*;
-import java.io.Serializable;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +15,7 @@ import java.util.List;
 @Entity(name = "Livro")
 @Table(name = "livro")
 @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
-public class LivroEntity implements Serializable {
+public class LivroEntity extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -55,8 +55,6 @@ public class LivroEntity implements Serializable {
         inverseJoinColumns = @JoinColumn(name = "semelhante_id")
     )
     private List<LivroEntity> livrosSemelhantes = new ArrayList<>();
-
-    private static final long serialVersionUID = 1L;
 
     public Long getId() {
         return id;

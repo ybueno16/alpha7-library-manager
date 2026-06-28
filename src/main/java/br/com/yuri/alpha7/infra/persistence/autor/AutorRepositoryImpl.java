@@ -21,7 +21,10 @@ public class AutorRepositoryImpl extends BaseRepository implements AutorReposito
     public Optional<Autor> findById(Long id) {
         return executeQuery(em -> {
             AutorEntity entity = em.find(AutorEntity.class, id);
-            return Optional.ofNullable(AutorMapper.toDomain(entity));
+            if (entity == null || entity.isDeleted()) {
+                return Optional.empty();
+            }
+            return Optional.of(AutorMapper.toDomain(entity));
         });
     }
 
@@ -29,7 +32,9 @@ public class AutorRepositoryImpl extends BaseRepository implements AutorReposito
     public Optional<Autor> findByNome(String nome) {
         return executeQuery(em -> {
             List<AutorEntity> results = em.createQuery(
-                            "SELECT a FROM Autor a WHERE a.nome = :nome", AutorEntity.class)
+                            "SELECT a FROM Autor a " +
+                            "WHERE a.nome = :nome " +
+                            "AND a.deletedAt IS NULL", AutorEntity.class)
                     .setParameter("nome", nome)
                     .getResultList();
             if (results.isEmpty()) {
@@ -42,7 +47,9 @@ public class AutorRepositoryImpl extends BaseRepository implements AutorReposito
     @Override
     public List<Autor> findAll() {
         return executeQuery(em ->
-                em.createQuery("SELECT a FROM Autor a", AutorEntity.class)
+                em.createQuery(
+                                "SELECT a FROM Autor a " +
+                                "WHERE a.deletedAt IS NULL", AutorEntity.class)
                         .getResultList()
                         .stream()
                         .map(AutorMapper::toDomain)
@@ -54,7 +61,12 @@ public class AutorRepositoryImpl extends BaseRepository implements AutorReposito
         executeInTransaction(em -> {
             AutorEntity entity = em.find(AutorEntity.class, id);
             if (entity != null) {
-                em.remove(entity);
+                em.createQuery(
+                                "UPDATE Autor a " +
+                                "SET a.deletedAt = CURRENT_TIMESTAMP " +
+                                "WHERE a.id = :id")
+                        .setParameter("id", id)
+                        .executeUpdate();
             }
             return null;
         });

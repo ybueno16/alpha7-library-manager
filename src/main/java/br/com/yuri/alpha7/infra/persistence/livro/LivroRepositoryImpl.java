@@ -24,12 +24,33 @@ public class LivroRepositoryImpl extends BaseRepository implements LivroReposito
     public Optional<Livro> findById(Long id) {
         return executeQuery(em -> {
             LivroEntity entity = em.find(LivroEntity.class, id);
-            return Optional.ofNullable(LivroMapper.toDomain(entity));
+            if (entity == null || entity.isDeleted()) {
+                return Optional.empty();
+            }
+            return Optional.of(LivroMapper.toDomain(entity));
         });
     }
 
     @Override
     public Optional<Livro> findByIsbn(ISBN isbn) {
+        return executeQuery(em -> {
+            List<LivroEntity> result = em.createQuery(
+                            "SELECT l FROM Livro l " +
+                            "LEFT JOIN FETCH l.editora " +
+                            "LEFT JOIN FETCH l.autores " +
+                            "WHERE l.isbn = :isbn " +
+                            "AND l.deletedAt IS NULL", LivroEntity.class)
+                    .setParameter("isbn", isbn)
+                    .getResultList();
+            if (result.isEmpty()) {
+                return Optional.empty();
+            }
+            return Optional.of(LivroMapper.toDomain(result.get(0)));
+        });
+    }
+
+    @Override
+    public Optional<Livro> findByIsbnIncludingDeleted(ISBN isbn) {
         return executeQuery(em -> {
             List<LivroEntity> result = em.createQuery(
                             "SELECT l FROM Livro l " +
@@ -52,6 +73,7 @@ public class LivroRepositoryImpl extends BaseRepository implements LivroReposito
                                 "SELECT DISTINCT l FROM Livro l " +
                                 "LEFT JOIN FETCH l.editora " +
                                 "LEFT JOIN FETCH l.autores " +
+                                "WHERE l.deletedAt IS NULL " +
                                 "ORDER BY l.titulo", LivroEntity.class)
                         .getResultList()
                         .stream()
@@ -66,11 +88,12 @@ public class LivroRepositoryImpl extends BaseRepository implements LivroReposito
                                 "SELECT DISTINCT l FROM Livro l " +
                                 "LEFT JOIN FETCH l.editora e " +
                                 "LEFT JOIN FETCH l.autores a " +
-                                "WHERE LOWER(l.titulo)    LIKE LOWER(:termo) " +
-                                "OR    LOWER(l.idioma)    LIKE LOWER(:termo) " +
-                                "OR    LOWER(e.nome)      LIKE LOWER(:termo) " +
-                                "OR    LOWER(a.nome)      LIKE LOWER(:termo) " +
-                                "OR    CAST(l.isbn AS string) LIKE LOWER(:termo) " +
+                                "WHERE l.deletedAt IS NULL " +
+                                "AND (LOWER(l.titulo)         LIKE LOWER(:termo) " +
+                                "OR   LOWER(l.idioma)         LIKE LOWER(:termo) " +
+                                "OR   LOWER(e.nome)           LIKE LOWER(:termo) " +
+                                "OR   LOWER(a.nome)           LIKE LOWER(:termo) " +
+                                "OR   CAST(l.isbn AS string)  LIKE LOWER(:termo)) " +
                                 "ORDER BY l.titulo", LivroEntity.class)
                         .setParameter("termo", "%" + termo + "%")
                         .getResultList()
@@ -83,9 +106,16 @@ public class LivroRepositoryImpl extends BaseRepository implements LivroReposito
     public void delete(Long id) {
         executeInTransaction(em -> {
             LivroEntity entity = em.find(LivroEntity.class, id);
+
             if (entity != null) {
-                em.remove(entity);
+                em.createQuery(
+                                "UPDATE Livro l " +
+                                        "SET l.deletedAt = CURRENT_TIMESTAMP " +
+                                        "WHERE l.id = :id")
+                        .setParameter("id", id)
+                        .executeUpdate();
             }
+
             return null;
         });
     }

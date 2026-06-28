@@ -4,7 +4,14 @@ import java.io.Serializable;
 import java.util.Objects;
 
 /**
- * Representa a editora responsável pela publicação de um livro.
+ * Entidade de domínio que representa a editora responsável pela publicação de um livro.
+ *
+ * <p>A identidade de uma editora é determinada pelo {@code nome}: dois objetos {@code Editora}
+ * com o mesmo nome são considerados iguais. Na importação de CSV e na busca por ISBN, o sistema
+ * pesquisa primeiro uma editora existente pelo nome antes de criar uma nova, evitando duplicatas.
+ *
+ * <p>Esta classe é um POJO puro, sem anotações JPA. A conversão para/de entidade JPA é
+ * responsabilidade de {@code EditoraMapper}.
  */
 public class Editora implements Serializable {
 

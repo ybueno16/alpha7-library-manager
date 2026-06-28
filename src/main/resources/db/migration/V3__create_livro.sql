@@ -5,7 +5,10 @@ CREATE TABLE livro (
     data_publicacao  DATE,
     numero_paginas   INTEGER,
     idioma           VARCHAR(50),
-    editora_id       BIGINT       REFERENCES editora(id) ON DELETE SET NULL
+    editora_id       BIGINT       REFERENCES editora(id) ON DELETE SET NULL,
+    created_at       TIMESTAMP    NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMP    NOT NULL DEFAULT NOW(),
+    deleted_at       TIMESTAMP
 );
 
 CREATE INDEX idx_livro_titulo_lower ON livro (LOWER(titulo));

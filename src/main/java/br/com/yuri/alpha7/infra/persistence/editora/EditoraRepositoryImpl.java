@@ -21,7 +21,10 @@ public class EditoraRepositoryImpl extends BaseRepository implements EditoraRepo
     public Optional<Editora> findById(Long id) {
         return executeQuery(em -> {
             EditoraEntity entity = em.find(EditoraEntity.class, id);
-            return Optional.ofNullable(EditoraMapper.toDomain(entity));
+            if (entity == null || entity.isDeleted()) {
+                return Optional.empty();
+            }
+            return Optional.of(EditoraMapper.toDomain(entity));
         });
     }
 
@@ -29,7 +32,9 @@ public class EditoraRepositoryImpl extends BaseRepository implements EditoraRepo
     public Optional<Editora> findByNome(String nome) {
         return executeQuery(em -> {
             List<EditoraEntity> results = em.createQuery(
-                            "SELECT e FROM Editora e WHERE e.nome = :nome", EditoraEntity.class)
+                            "SELECT e FROM Editora e " +
+                            "WHERE e.nome = :nome " +
+                            "AND e.deletedAt IS NULL", EditoraEntity.class)
                     .setParameter("nome", nome)
                     .getResultList();
             if (results.isEmpty()) {
@@ -42,7 +47,9 @@ public class EditoraRepositoryImpl extends BaseRepository implements EditoraRepo
     @Override
     public List<Editora> findAll() {
         return executeQuery(em ->
-                em.createQuery("SELECT e FROM Editora e", EditoraEntity.class)
+                em.createQuery(
+                                "SELECT e FROM Editora e " +
+                                "WHERE e.deletedAt IS NULL", EditoraEntity.class)
                         .getResultList()
                         .stream()
                         .map(EditoraMapper::toDomain)
@@ -54,7 +61,12 @@ public class EditoraRepositoryImpl extends BaseRepository implements EditoraRepo
         executeInTransaction(em -> {
             EditoraEntity entity = em.find(EditoraEntity.class, id);
             if (entity != null) {
-                em.remove(entity);
+                em.createQuery(
+                                "UPDATE Editora e " +
+                                "SET e.deletedAt = CURRENT_TIMESTAMP " +
+                                "WHERE e.id = :id")
+                        .setParameter("id", id)
+                        .executeUpdate();
             }
             return null;
         });
