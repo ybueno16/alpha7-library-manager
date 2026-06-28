@@ -1,0 +1,7 @@
+titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas
+Livro com ISBN inválido,ISBN-INVALIDO,Autor Teste,Editora Teste,2024-01-01,por,200
+Livro com data no formato errado,9780132350884,Robert C. Martin,Prentice Hall,31/12/1999,eng,300
+Livro com páginas não numéricas,9780201633610,Autor Teste,Editora Teste,2020-05-10,eng,duzentas
+,9780743273565,F. Scott Fitzgerald,Scribner,1925-04-10,eng,180
+Livro com ISBN vazio,,Autor Teste,Editora Teste,2021-03-15,por,150
+Livro com data inválida,9780061935466,Harper Lee,J.B. Lippincott,2024-13-45,eng,281

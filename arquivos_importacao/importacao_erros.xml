@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<livros>
+    <!-- Erro: ISBN inválido (dígito verificador errado) -->
+    <livro>
+        <titulo>Livro com ISBN inválido</titulo>
+        <isbn>ISBN-INVALIDO</isbn>
+        <autores>Autor Teste</autores>
+        <editora>Editora Teste</editora>
+        <dataPublicacao>2024-01-01</dataPublicacao>
+        <idioma>por</idioma>
+        <numeroPaginas>200</numeroPaginas>
+    </livro>
+
+    <!-- Erro: data no formato errado -->
+    <livro>
+        <titulo>Livro com data inválida</titulo>
+        <isbn>9780132350884</isbn>
+        <autores>Robert C. Martin</autores>
+        <editora>Prentice Hall</editora>
+        <dataPublicacao>31/12/1999</dataPublicacao>
+        <idioma>eng</idioma>
+        <numeroPaginas>300</numeroPaginas>
+    </livro>
+
+    <!-- Erro: número de páginas não numérico -->
+    <livro>
+        <titulo>Livro com páginas inválidas</titulo>
+        <isbn>9780201633610</isbn>
+        <autores>Autor Teste</autores>
+        <editora>Editora Teste</editora>
+        <dataPublicacao>2020-05-10</dataPublicacao>
+        <idioma>eng</idioma>
+        <numeroPaginas>duzentas</numeroPaginas>
+    </livro>
+
+    <!-- Erro: título vazio -->
+    <livro>
+        <titulo></titulo>
+        <isbn>9780743273565</isbn>
+        <autores>F. Scott Fitzgerald</autores>
+        <editora>Scribner</editora>
+        <dataPublicacao>1925-04-10</dataPublicacao>
+        <idioma>eng</idioma>
+        <numeroPaginas>180</numeroPaginas>
+    </livro>
+
+    <!-- Erro: ISBN vazio -->
+    <livro>
+        <titulo>Livro sem ISBN</titulo>
+        <isbn></isbn>
+        <autores>Autor Teste</autores>
+        <editora>Editora Teste</editora>
+        <dataPublicacao>2021-03-15</dataPublicacao>
+        <idioma>por</idioma>
+        <numeroPaginas>150</numeroPaginas>
+    </livro>
+
+    <!-- Erro: data impossível -->
+    <livro>
+        <titulo>Livro com data impossível</titulo>
+        <isbn>9780061935466</isbn>
+        <autores>Harper Lee</autores>
+        <editora>J.B. Lippincott</editora>
+        <dataPublicacao>2024-13-45</dataPublicacao>
+        <idioma>eng</idioma>
+        <numeroPaginas>281</numeroPaginas>
+    </livro>
+</livros>
