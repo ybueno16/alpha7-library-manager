@@ -5,6 +5,7 @@ import br.com.yuri.alpha7.presentation.livro.presenter.LivroTableModel;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,7 +18,7 @@ public class LivroListPanel extends JPanel implements LivroListView {
     private final JButton         newButton       = new JButton("Novo");
     private final JButton         editButton      = new JButton("Editar");
     private final JButton         deleteButton    = new JButton("Excluir");
-    private final JButton         importButton    = new JButton("Importar CSV");
+    private final JButton         importButton    = new JButton("Importar");
 
 
     public LivroListPanel() {
@@ -25,15 +26,15 @@ public class LivroListPanel extends JPanel implements LivroListView {
         initLayout();
     }
 
-    private void initComponents (){
-        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+    private void initComponents() {
+        table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         table.setAutoCreateRowSorter(true);
         editButton.setEnabled(false);
         deleteButton.setEnabled(false);
         table.getSelectionModel().addListSelectionListener(e -> {
-            boolean selected = table.getSelectedRow() >= 0;
-            editButton.setEnabled(selected);
-            deleteButton.setEnabled(selected);
+            int count = table.getSelectedRowCount();
+            editButton.setEnabled(count == 1);
+            deleteButton.setEnabled(count >= 1);
         });
     }
 
@@ -69,9 +70,20 @@ public class LivroListPanel extends JPanel implements LivroListView {
     @Override
     public Optional<Livro> getSelectedLivro() {
         int row = table.getSelectedRow();
-        if(row < 0) return Optional.empty();
+        if (row < 0) return Optional.empty();
         int modelRow = table.convertRowIndexToModel(row);
         return Optional.of(tableModel.getLivro(modelRow));
+    }
+
+    @Override
+    public List<Livro> getSelectedLivros() {
+        int[] rows = table.getSelectedRows();
+        List<Livro> result = new ArrayList<>();
+        for (int row : rows) {
+            int modelRow = table.convertRowIndexToModel(row);
+            result.add(tableModel.getLivro(modelRow));
+        }
+        return result;
     }
 
     @Override
@@ -98,6 +110,12 @@ public class LivroListPanel extends JPanel implements LivroListView {
     @Override
     public void onDelete(Runnable acao) {
         deleteButton.addActionListener(e -> acao.run());
+    }
+
+    @Override
+    public boolean confirm(String message) {
+        int result = JOptionPane.showConfirmDialog(this, message, "Confirmar", JOptionPane.YES_NO_OPTION);
+        return result == JOptionPane.YES_OPTION;
     }
 
     @Override
