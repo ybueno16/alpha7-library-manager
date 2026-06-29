@@ -152,6 +152,7 @@ class LivroFormPresenterTest {
         isbnLookupAction.run();
         Thread.sleep(200);
         SwingUtilities.invokeAndWait(() -> {});
+        SwingUtilities.invokeAndWait(() -> {});
 
         verify(view).setLookupEnabled(true);
         verify(view).showValidationError(anyString());
