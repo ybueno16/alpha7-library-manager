@@ -16,6 +16,7 @@ public class MainWindow extends JFrame {
                 panel,
                 useCases.bookSearch(),
                 useCases.bookCrud(),
+                useCases.bookExport(),
                 useCases.importUseCase(),
                 useCases.isbnLookup(),
                 useCases.editoraUseCase()

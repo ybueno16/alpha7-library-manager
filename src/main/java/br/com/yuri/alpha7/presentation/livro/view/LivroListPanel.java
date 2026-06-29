@@ -3,42 +3,76 @@ package br.com.yuri.alpha7.presentation.livro.view;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
 import br.com.yuri.alpha7.presentation.livro.presenter.LivroTableModel;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.AbstractAction;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextField;
+import javax.swing.KeyStroke;
+import javax.swing.ListSelectionModel;
+import javax.swing.table.TableRowSorter;
+import javax.swing.JTable;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 public class LivroListPanel extends JPanel implements LivroListView {
 
-    private final LivroTableModel tableModel      = new LivroTableModel();
-    private final JTable          table           = new JTable(tableModel);
-    private final JTextField      searchField     = new JTextField(20);
-    private final JButton         searchButton    = new JButton("Buscar");
-    private final JButton         newButton       = new JButton("Novo");
-    private final JButton         editButton      = new JButton("Editar");
-    private final JButton         deleteButton    = new JButton("Excluir");
-    private final JButton         importButton    = new JButton("Importar");
+    private final LivroTableModel tableModel   = new LivroTableModel();
+    private final JTable          table        = new JTable(tableModel);
+    private final JTextField      searchField  = new JTextField(20);
+    private final JButton         searchButton = new JButton("Buscar");
+    private final JButton         newButton    = new JButton("Novo");
+    private final JButton         editButton   = new JButton("Editar");
+    private final JButton         deleteButton = new JButton("Excluir");
+    private final JButton         importButton = new JButton("Importar");
+    private final JButton         exportButton = new JButton("Exportar");
 
+    private Runnable searchAction;
+    private Runnable createAction;
+    private Runnable editAction;
+    private Runnable deleteAction;
 
     public LivroListPanel() {
         initComponents();
         initLayout();
+        initKeyBindings();
     }
 
     private void initComponents() {
         table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-        table.setAutoCreateRowSorter(true);
+        table.setRowSorter(new TableRowSorter<>(tableModel));
         editButton.setEnabled(false);
         deleteButton.setEnabled(false);
+
         table.getSelectionModel().addListSelectionListener(e -> {
             int count = table.getSelectedRowCount();
             editButton.setEnabled(count == 1);
             deleteButton.setEnabled(count >= 1);
         });
+
+        table.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2 && editAction != null) {
+                    editAction.run();
+                }
+            }
+        });
     }
 
-    private void initLayout(){
+    private void initLayout() {
         setLayout(new BorderLayout(0, 8));
 
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -54,7 +88,35 @@ public class LivroListPanel extends JPanel implements LivroListView {
         buttonPanel.add(editButton);
         buttonPanel.add(deleteButton);
         buttonPanel.add(importButton);
+        buttonPanel.add(exportButton);
         add(buttonPanel, BorderLayout.SOUTH);
+    }
+
+    private void initKeyBindings() {
+        bindKey("search", KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0),
+                () -> { if (searchAction != null) searchAction.run(); });
+        bindKey("new", KeyStroke.getKeyStroke(KeyEvent.VK_N, InputEvent.CTRL_DOWN_MASK),
+                () -> { if (createAction != null) createAction.run(); });
+
+        table.getInputMap(JComponent.WHEN_FOCUSED)
+             .put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "delete-row");
+        table.getActionMap()
+             .put("delete-row", new AbstractAction() {
+                 @Override
+                 public void actionPerformed(ActionEvent e) {
+                     if (deleteAction != null) deleteAction.run();
+                 }
+             });
+    }
+
+    private void bindKey(String name, KeyStroke ks, Runnable action) {
+        getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(ks, name);
+        getActionMap().put(name, new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                action.run();
+            }
+        });
     }
 
     @Override
@@ -70,7 +132,9 @@ public class LivroListPanel extends JPanel implements LivroListView {
     @Override
     public Optional<Livro> getSelectedLivro() {
         int row = table.getSelectedRow();
-        if (row < 0) return Optional.empty();
+        if (row < 0) {
+            return Optional.empty();
+        }
         int modelRow = table.convertRowIndexToModel(row);
         return Optional.of(tableModel.getLivro(modelRow));
     }
@@ -87,29 +151,38 @@ public class LivroListPanel extends JPanel implements LivroListView {
     }
 
     @Override
-    public void onImport(Runnable acao) {
-        importButton.addActionListener(e -> acao.run());
-    }
-
-    @Override
     public void onSearch(Runnable acao) {
+        this.searchAction = acao;
         searchButton.addActionListener(e -> acao.run());
         searchField.addActionListener(e -> acao.run());
     }
 
     @Override
     public void onCreate(Runnable acao) {
+        this.createAction = acao;
         newButton.addActionListener(e -> acao.run());
     }
 
     @Override
     public void onEdit(Runnable acao) {
+        this.editAction = acao;
         editButton.addActionListener(e -> acao.run());
     }
 
     @Override
     public void onDelete(Runnable acao) {
+        this.deleteAction = acao;
         deleteButton.addActionListener(e -> acao.run());
+    }
+
+    @Override
+    public void onImport(Runnable acao) {
+        importButton.addActionListener(e -> acao.run());
+    }
+
+    @Override
+    public void onExport(Runnable acao) {
+        exportButton.addActionListener(e -> acao.run());
     }
 
     @Override

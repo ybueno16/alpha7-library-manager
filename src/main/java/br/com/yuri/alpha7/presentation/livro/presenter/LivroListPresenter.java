@@ -1,12 +1,15 @@
 package br.com.yuri.alpha7.presentation.livro.presenter;
 
 import br.com.yuri.alpha7.application.editora.EditoraUseCase;
+import br.com.yuri.alpha7.application.importacao.ImportPreviewRecord;
 import br.com.yuri.alpha7.application.importacao.ImportResult;
 import br.com.yuri.alpha7.application.importacao.ImportUseCase;
 import br.com.yuri.alpha7.application.isbn.IsbnLookupUseCase;
 import br.com.yuri.alpha7.application.livro.BookCrudUseCase;
+import br.com.yuri.alpha7.application.livro.BookExportUseCase;
 import br.com.yuri.alpha7.application.livro.BookSearchUseCase;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
+import br.com.yuri.alpha7.presentation.livro.view.ImportPreviewDialog;
 import br.com.yuri.alpha7.presentation.livro.view.LivroFormDialog;
 import br.com.yuri.alpha7.presentation.livro.view.LivroListView;
 
@@ -18,6 +21,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.Dimension;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.util.List;
 import java.util.Optional;
 
@@ -42,6 +46,7 @@ public class LivroListPresenter {
     private final LivroListView     view;
     private final BookSearchUseCase searchUseCase;
     private final BookCrudUseCase   crudUseCase;
+    private final BookExportUseCase exportUseCase;
     private final ImportUseCase     importUseCase;
     private final IsbnLookupUseCase isbnLookupUseCase;
     private final EditoraUseCase    editoraUseCase;
@@ -49,12 +54,14 @@ public class LivroListPresenter {
     public LivroListPresenter(LivroListView view,
                               BookSearchUseCase searchUseCase,
                               BookCrudUseCase crudUseCase,
+                              BookExportUseCase exportUseCase,
                               ImportUseCase importUseCase,
                               IsbnLookupUseCase isbnLookupUseCase,
                               EditoraUseCase editoraUseCase) {
         this.view              = view;
         this.searchUseCase     = searchUseCase;
         this.crudUseCase       = crudUseCase;
+        this.exportUseCase     = exportUseCase;
         this.importUseCase     = importUseCase;
         this.isbnLookupUseCase = isbnLookupUseCase;
         this.editoraUseCase    = editoraUseCase;
@@ -70,16 +77,17 @@ public class LivroListPresenter {
         view.onDelete(this::delete);
         view.onCreate(this::openCreateForm);
         view.onEdit(this::openEditForm);
-        view.onImport(this::importCsv);
+        view.onImport(this::importFile);
+        view.onExport(this::exportFile);
     }
 
     private void search() {
         String term = view.getSearchTerm().trim();
         if (term.isEmpty()) {
             view.showLivros(searchUseCase.findAll());
-        } else {
-            view.showLivros(searchUseCase.findByFiltro(term));
+            return;
         }
+        view.showLivros(searchUseCase.findByFiltro(term));
     }
 
     private void delete() {
@@ -91,9 +99,8 @@ public class LivroListPresenter {
         String message = selected.size() == 1
                 ? "Excluir \"" + selected.get(0).getTitulo() + "\"?"
                 : "Excluir " + selected.size() + " livro(s) selecionado(s)?";
-        if (!view.confirm(message)) {
-            return;
-        }
+        if (!view.confirm(message)) return;
+
         int errors = 0;
         for (Livro livro : selected) {
             try {
@@ -108,13 +115,20 @@ public class LivroListPresenter {
         }
     }
 
-    private void importCsv() {
+    private void importFile() {
         JFileChooser chooser = new JFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter("Arquivos de importação (CSV, XML)", "csv", "xml"));
         if (chooser.showOpenDialog(null) != JFileChooser.APPROVE_OPTION) return;
+
         File file = chooser.getSelectedFile();
         try (FileInputStream is = new FileInputStream(file)) {
-            ImportResult result = importUseCase.importFile(is, file.getName());
+            List<ImportPreviewRecord> previews = importUseCase.preview(is, file.getName());
+            ImportPreviewDialog dialog = new ImportPreviewDialog(null, previews);
+            dialog.setVisible(true);
+
+            if (!dialog.isConfirmed()) return;
+
+            ImportResult result = importUseCase.importSelected(previews);
             loadLivros();
             showImportResult(result);
         } catch (Exception e) {
@@ -151,19 +165,46 @@ public class LivroListPresenter {
         JOptionPane.showMessageDialog(null, scroll, "Importação concluída com erros", JOptionPane.WARNING_MESSAGE);
     }
 
+    private void exportFile() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setFileFilter(new FileNameExtensionFilter("Arquivo CSV (*.csv)", "csv"));
+        chooser.setSelectedFile(new File("acervo.csv"));
+        if (chooser.showSaveDialog(null) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        File file = chooser.getSelectedFile();
+        if (!file.getName().toLowerCase().endsWith(".csv")) {
+            file = new File(file.getAbsolutePath() + ".csv");
+        }
+        try (FileWriter writer = new FileWriter(file)) {
+            int total = exportUseCase.exportToCsv(writer);
+            JOptionPane.showMessageDialog(null,
+                    total + " livro(s) exportado(s) para " + file.getName(),
+                    "Exportação concluída", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception e) {
+            view.showErrorMessage("Erro ao exportar: " + e.getMessage());
+        }
+    }
+
     private void openCreateForm() {
         LivroFormDialog dialog = new LivroFormDialog(null);
-        LivroFormPresenter presenter = new LivroFormPresenter(dialog, crudUseCase, isbnLookupUseCase, editoraUseCase, this::loadLivros);
+        LivroFormPresenter presenter = new LivroFormPresenter(dialog, crudUseCase, searchUseCase, isbnLookupUseCase, editoraUseCase, this::loadLivros);
         presenter.initCreate();
         dialog.setVisible(true);
     }
 
     private void openEditForm() {
         Optional<Livro> selected = view.getSelectedLivro();
-        if (!selected.isPresent()) return;
+        if (!selected.isPresent()) {
+            return;
+        }
+        Optional<Livro> livroCompleto = crudUseCase.findById(selected.get().getId());
+        if (!livroCompleto.isPresent()) {
+            return;
+        }
         LivroFormDialog dialog = new LivroFormDialog(null);
-        LivroFormPresenter presenter = new LivroFormPresenter(dialog, crudUseCase, isbnLookupUseCase, editoraUseCase, this::loadLivros);
-        presenter.initEdit(selected.get());
+        LivroFormPresenter presenter = new LivroFormPresenter(dialog, crudUseCase, searchUseCase, isbnLookupUseCase, editoraUseCase, this::loadLivros);
+        presenter.initEdit(livroCompleto.get());
         dialog.setVisible(true);
     }
 }

@@ -4,6 +4,7 @@ import br.com.yuri.alpha7.application.editora.EditoraUseCase;
 import br.com.yuri.alpha7.application.importacao.ImportUseCase;
 import br.com.yuri.alpha7.application.isbn.IsbnLookupUseCase;
 import br.com.yuri.alpha7.application.livro.BookCrudUseCase;
+import br.com.yuri.alpha7.application.livro.BookExportUseCase;
 import br.com.yuri.alpha7.application.livro.BookSearchUseCase;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
 import br.com.yuri.alpha7.presentation.livro.view.LivroListView;
@@ -30,6 +31,7 @@ class LivroListPresenterTest {
     @Mock private LivroListView     view;
     @Mock private BookSearchUseCase searchUseCase;
     @Mock private BookCrudUseCase   crudUseCase;
+    @Mock private BookExportUseCase exportUseCase;
     @Mock private ImportUseCase     importUseCase;
     @Mock private IsbnLookupUseCase isbnLookupUseCase;
     @Mock private EditoraUseCase    editoraUseCase;
@@ -42,7 +44,7 @@ class LivroListPresenterTest {
     @BeforeEach
     void setUp() {
         presenter = new LivroListPresenter(
-                view, searchUseCase, crudUseCase, importUseCase, isbnLookupUseCase, editoraUseCase);
+                view, searchUseCase, crudUseCase, exportUseCase, importUseCase, isbnLookupUseCase, editoraUseCase);
 
         ArgumentCaptor<Runnable> searchCaptor = ArgumentCaptor.forClass(Runnable.class);
         verify(view).onSearch(searchCaptor.capture());
