@@ -150,12 +150,9 @@ class LivroFormPresenterTest {
         when(isbnLookupUseCase.findByIsbn(any())).thenThrow(new RuntimeException("timeout"));
 
         isbnLookupAction.run();
-        Thread.sleep(200);
-        SwingUtilities.invokeAndWait(() -> {});
-        SwingUtilities.invokeAndWait(() -> {});
 
-        verify(view).setLookupEnabled(true);
-        verify(view).showValidationError(anyString());
+        verify(view, timeout(3000)).setLookupEnabled(true);
+        verify(view, timeout(3000)).showValidationError(anyString());
     }
 
     @Test
