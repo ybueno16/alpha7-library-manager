@@ -16,18 +16,25 @@ import org.slf4j.LoggerFactory;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Caso de uso para importação em lote de livros a partir de arquivos externos.
  *
+ * <p>A importação segue duas fases separadas:
+ * <ol>
+ *   <li>{@link #preview(InputStream, String)} — faz o parse e a validação sem gravar nada,
+ *       retornando uma lista de {@link ImportPreviewRecord} com o status de cada linha.</li>
+ *   <li>{@link #importSelected(List)} — grava apenas os registros marcados pelo usuário.</li>
+ * </ol>
+ *
  * <p>Suporta múltiplos formatos através do padrão Strategy: cada {@link ImportParser}
  * registrado declara a extensão que suporta e é selecionado automaticamente com base
- * no nome do arquivo recebido. Novos formatos podem ser adicionados sem alterar esta classe.
- *
- * <p>Cada registro é processado dentro de uma transação independente: falhas individuais
- * são registradas no {@link ImportResult} sem interromper o restante da importação.
- * Livros já presentes no acervo ativo são ignorados; livros novos ou reativados são inseridos.
+ * no nome do arquivo.
  */
 public class ImportUseCase {
 
@@ -54,47 +61,64 @@ public class ImportUseCase {
     }
 
     /**
-     * Importa livros a partir de um arquivo, selecionando o parser pela extensão do nome.
+     * Faz o parse e a validação do arquivo sem gravar nenhum dado.
      *
      * @param stream   stream do arquivo
      * @param filename nome do arquivo (usado para detectar o formato pela extensão)
-     * @return resultado com contadores de importados, ignorados e erros por linha
+     * @return lista com o status de cada linha: NOVO, JA_EXISTE ou ERRO
      * @throws ImportException se o formato do arquivo não for suportado
      */
-    public ImportResult importFile(InputStream stream, String filename) {
+    public List<ImportPreviewRecord> preview(InputStream stream, String filename) {
         String ext = extension(filename);
         ImportParser parser = parsers.get(ext);
         if (parser == null) {
             throw new ImportException("Formato não suportado: ." + ext + ". Utilize CSV ou XML.");
         }
 
-        logger.info("Importação iniciada: '{}'", filename);
-        ImportResult result = new ImportResult();
+        logger.info("Preview iniciado: '{}'", filename);
         List<ImportRecord> records = parser.parse(stream);
+        List<ImportPreviewRecord> previews = new ArrayList<>();
         int lineNumber = 2;
 
         for (ImportRecord record : records) {
-            final int line = lineNumber++;
-            logger.debug("Processando linha {}", line);
+            int line = lineNumber++;
+            previews.add(validateRecord(line, record));
+        }
+
+        return previews;
+    }
+
+    /**
+     * Grava apenas os registros marcados como selecionados na lista de preview.
+     * Registros com status {@link ImportPreviewRecord.Status#ERRO} são ignorados mesmo se marcados.
+     *
+     * @param previews lista retornada por {@link #preview(InputStream, String)}
+     * @return resultado com contadores de importados, ignorados e erros
+     */
+    public ImportResult importSelected(List<ImportPreviewRecord> previews) {
+        ImportResult result = new ImportResult();
+
+        for (ImportPreviewRecord preview : previews) {
+            if (preview.getStatus() == ImportPreviewRecord.Status.ERRO) {
+                result.addError("Linha " + preview.getLineNumber() + ": " + preview.getMensagem());
+                continue;
+            }
+            if (!preview.isSelecionado()) {
+                result.incrementSkipped();
+                continue;
+            }
             try {
-                boolean[] imported = {false};
-                unitOfWork.execute(() -> {
-                    imported[0] = processRecord(record);
-                });
-                if (imported[0]) {
-                    result.incrementNew();
-                } else {
-                    result.incrementSkipped();
-                }
+                unitOfWork.execute(() -> saveRecord(preview.sourceRecord));
+                result.incrementNew();
             } catch (IsbnInvalidoException e) {
-                logger.warn("Erro na linha {}: ISBN inválido — {}", line, e.getMessage());
-                result.addError("Linha " + line + ": ISBN inválido — " + e.getMessage());
+                logger.warn("Erro na linha {}: ISBN inválido — {}", preview.getLineNumber(), e.getMessage());
+                result.addError("Linha " + preview.getLineNumber() + ": ISBN inválido — " + e.getMessage());
             } catch (ImportException e) {
-                logger.warn("Erro na linha {}: {}", line, e.getMessage());
-                result.addError("Linha " + line + ": " + e.getMessage());
+                logger.warn("Erro na linha {}: {}", preview.getLineNumber(), e.getMessage());
+                result.addError("Linha " + preview.getLineNumber() + ": " + e.getMessage());
             } catch (Exception e) {
-                logger.warn("Erro inesperado na linha {}: {}", line, e.getMessage());
-                result.addError("Linha " + line + ": Não foi possível salvar o registro");
+                logger.warn("Erro inesperado na linha {}: {}", preview.getLineNumber(), e.getMessage());
+                result.addError("Linha " + preview.getLineNumber() + ": Não foi possível salvar o registro");
             }
         }
 
@@ -103,15 +127,81 @@ public class ImportUseCase {
         return result;
     }
 
-    /**
-     * Retorna {@code true} se o livro foi importado, {@code false} se já existe no acervo ativo.
-     */
-    private boolean processRecord(ImportRecord record) {
-        ISBN isbn = new ISBN(record.getIsbn());
+    private ImportPreviewRecord validateRecord(int line, ImportRecord record) {
+        try {
+            ISBN isbn = new ISBN(record.getIsbn());
+            validateOptionalFields(record.getDataPublicacao(), record.getNumeroPaginas());
 
-        if (livroRepository.findByIsbn(isbn).isPresent()) {
-            return false;
+            if (livroRepository.findByIsbn(isbn).isPresent()) {
+                return new ImportPreviewRecord(
+                        line, record.getTitulo(), record.getIsbn(),
+                        ImportPreviewRecord.Status.JA_EXISTE,
+                        "Já existe no acervo",
+                        false,
+                        record
+                );
+            }
+
+            if(record.getTitulo().isEmpty() || record.getTitulo() == null) {
+                return new ImportPreviewRecord(
+                        line, record.getTitulo(), record.getIsbn(),
+                        ImportPreviewRecord.Status.ERRO,
+                        "Título não pode ser vazio",
+                        false,
+                        record
+                );
+            }
+
+            return new ImportPreviewRecord(
+                    line, record.getTitulo(), record.getIsbn(),
+                    ImportPreviewRecord.Status.NOVO,
+                    "Será importado",
+                    true,
+                    record
+            );
+
+        } catch (IsbnInvalidoException e) {
+            return new ImportPreviewRecord(
+                    line, record.getTitulo(), record.getIsbn(),
+                    ImportPreviewRecord.Status.ERRO,
+                    "ISBN inválido — " + e.getMessage(),
+                    false,
+                    record
+            );
+        } catch (ImportException e) {
+            return new ImportPreviewRecord(
+                    line, record.getTitulo(), record.getIsbn(),
+                    ImportPreviewRecord.Status.ERRO,
+                    e.getMessage(),
+                    false,
+                    record
+            );
         }
+    }
+
+    private void validateOptionalFields(String dataPublicacao, String numeroPaginas) {
+        if (!dataPublicacao.isEmpty()) validateDate(dataPublicacao);
+        if (!numeroPaginas.isEmpty()) validatePages(numeroPaginas);
+    }
+
+    private void validateDate(String value) {
+        try {
+            LocalDate.parse(value);
+        } catch (DateTimeParseException e) {
+            throw new ImportException("Data no formato inválido. Use YYYY-MM-DD (ex: 2024-01-31)");
+        }
+    }
+
+    private void validatePages(String value) {
+        try {
+            Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            throw new ImportException("Número de páginas inválido. Informe apenas números inteiros");
+        }
+    }
+
+    private void saveRecord(ImportRecord record) {
+        ISBN isbn = new ISBN(record.getIsbn());
 
         Optional<Livro> existing = livroRepository.findByIsbnIncludingDeleted(isbn);
 
@@ -129,10 +219,8 @@ public class ImportUseCase {
         livro.setTitulo(record.getTitulo());
         livro.setEditora(editora);
         livro.setAutores(authors);
-        assignOptionalFields(livro, record.getDataPublicacao(), record.getIdioma(), record.getNumeroPaginas());
+        assignFields(livro, record.getDataPublicacao(), record.getIdioma(), record.getNumeroPaginas());
         livroRepository.save(livro);
-
-        return true;
     }
 
     private List<Autor> resolveAuthors(String authorNames) {
@@ -147,23 +235,15 @@ public class ImportUseCase {
         return authors;
     }
 
-    private void assignOptionalFields(Livro livro, String dataPublicacao, String idioma, String numeroPaginas) {
+    private void assignFields(Livro livro, String dataPublicacao, String idioma, String numeroPaginas) {
         if (!dataPublicacao.isEmpty()) {
-            try {
-                livro.setDataPublicacao(LocalDate.parse(dataPublicacao));
-            } catch (DateTimeParseException e) {
-                throw new ImportException("Data no formato inválido. Use YYYY-MM-DD (ex: 2024-01-31)");
-            }
+            livro.setDataPublicacao(LocalDate.parse(dataPublicacao));
         }
         if (!idioma.isEmpty()) {
             livro.setIdioma(idioma);
         }
         if (!numeroPaginas.isEmpty()) {
-            try {
-                livro.setNumeroPaginas(Integer.parseInt(numeroPaginas));
-            } catch (NumberFormatException e) {
-                throw new ImportException("Número de páginas inválido. Informe apenas números inteiros");
-            }
+            livro.setNumeroPaginas(Integer.parseInt(numeroPaginas));
         }
     }
 

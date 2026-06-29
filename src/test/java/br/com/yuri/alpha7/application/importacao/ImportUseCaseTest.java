@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -40,7 +41,7 @@ class ImportUseCaseTest {
                 unitOfWork, livroRepository, autorRepository, editoraRepository,
                 Arrays.asList(new CsvImportParser())
         );
-        doAnswer(invocation -> {
+        lenient().doAnswer(invocation -> {
             Runnable action = invocation.getArgument(0);
             action.run();
             return null;
@@ -62,7 +63,7 @@ class ImportUseCaseTest {
         when(autorRepository.save(any())).thenReturn(new Autor("Robert Martin"));
         when(livroRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        ImportResult result = useCase.importFile(csvStream(
+        ImportResult result = importFile(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
                 "Clean Code,9780132350884,Robert Martin,Prentice Hall,2008-08-01,English,431"
         ), "test.csv");
@@ -86,7 +87,7 @@ class ImportUseCaseTest {
 
         when(livroRepository.findByIsbn(any())).thenReturn(Optional.of(existingBook));
 
-        ImportResult result = useCase.importFile(csvStream(
+        ImportResult result = importFile(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
                 "Clean Code,9780132350884,Robert Martin,Prentice Hall,2022-01-01,English,500"
         ), "test.csv");
@@ -114,7 +115,7 @@ class ImportUseCaseTest {
         when(autorRepository.findByNome(any())).thenReturn(Optional.of(new Autor("Robert Martin")));
         when(livroRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        ImportResult result = useCase.importFile(csvStream(
+        ImportResult result = importFile(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
                 "Clean Code,9780132350884,Robert Martin,Prentice Hall,2008-08-01,English,431"
         ), "test.csv");
@@ -132,7 +133,7 @@ class ImportUseCaseTest {
             " then error is recorded and processing continues"
     )
     void shouldAddErrorAndContinueWhenIsbnIsInvalid() {
-        ImportResult result = useCase.importFile(csvStream(
+        ImportResult result = importFile(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
                 "Invalid Book,INVALID,Author,Publisher,2023-01-01,EN,100"
         ), "test.csv");
@@ -157,7 +158,7 @@ class ImportUseCaseTest {
         when(autorRepository.findByNome(any())).thenReturn(Optional.of(new Autor("Joshua Bloch")));
         when(livroRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        useCase.importFile(csvStream(
+        importFile(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
                 "Effective Java,9780134685991,Joshua Bloch,O'Reilly,2018-01-06,English,412"
         ), "test.csv");
@@ -179,7 +180,7 @@ class ImportUseCaseTest {
         when(autorRepository.findByNome(any())).thenReturn(Optional.of(new Autor("Robert Martin")));
         when(livroRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        ImportResult result = useCase.importFile(csvStream(
+        ImportResult result = importFile(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
                 "Clean Code,9780132350884,Robert Martin,Prentice Hall,2008-08-01,English,431\n" +
                 "Invalid,INVALID,Author,Publisher,2023-01-01,EN,100"
@@ -203,7 +204,7 @@ class ImportUseCaseTest {
         when(autorRepository.findByNome(any())).thenReturn(Optional.of(new Autor("Author")));
         when(livroRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        ImportResult result = useCase.importFile(csvStream(
+        ImportResult result = importFile(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
                 "Book Title,9780132350884,Author,Pub,,,\n"
         ), "test.csv");
@@ -229,13 +230,18 @@ class ImportUseCaseTest {
         when(autorRepository.findByNome("Author A")).thenReturn(Optional.of(new Autor("Author A")));
         when(livroRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        ImportResult result = useCase.importFile(csvStream(
+        ImportResult result = importFile(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
                 "Book,9780132350884,\"Author A,\",Pub,2023-01-01,EN,100\n"
         ), "test.csv");
 
         assertEquals(1, result.getTotalNew());
         verify(livroRepository).save(argThat(l -> l.getAutores().size() == 1));
+    }
+
+    private ImportResult importFile(InputStream stream, String filename) {
+        List<ImportPreviewRecord> previews = useCase.preview(stream, filename);
+        return useCase.importSelected(previews);
     }
 
     private InputStream csvStream(String content) {
