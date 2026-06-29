@@ -28,7 +28,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build fat JAR
-        run: ./gradlew shadowJar
+        run: ./gradlew -Dorg.gradle.java.home="$JAVA_HOME" shadowJar
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
