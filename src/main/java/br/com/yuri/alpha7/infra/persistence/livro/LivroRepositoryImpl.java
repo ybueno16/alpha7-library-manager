@@ -6,6 +6,7 @@ import br.com.yuri.alpha7.domain.livro.vo.ISBN;
 import br.com.yuri.alpha7.infra.persistence.BaseRepository;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -15,6 +16,12 @@ public class LivroRepositoryImpl extends BaseRepository implements LivroReposito
     public Livro save(Livro livro) {
         LivroEntity entity = LivroMapper.toEntity(livro);
         return executeInTransaction(em -> {
+            List<LivroEntity> semelhantes = livro.getLivrosSemelhantes().stream()
+                    .filter(s -> s.getId() != null)
+                    .map(s -> em.getReference(LivroEntity.class, s.getId()))
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            entity.setLivrosSemelhantes(semelhantes);
             LivroEntity saved = em.merge(entity);
             return LivroMapper.toDomain(saved);
         });
@@ -27,7 +34,7 @@ public class LivroRepositoryImpl extends BaseRepository implements LivroReposito
             if (entity == null || entity.isDeleted()) {
                 return Optional.empty();
             }
-            return Optional.of(LivroMapper.toDomain(entity));
+            return Optional.of(LivroMapper.toDomainWithSemelhantes(entity));
         });
     }
 
@@ -106,16 +113,14 @@ public class LivroRepositoryImpl extends BaseRepository implements LivroReposito
     public void delete(Long id) {
         executeInTransaction(em -> {
             LivroEntity entity = em.find(LivroEntity.class, id);
-
             if (entity != null) {
                 em.createQuery(
                                 "UPDATE Livro l " +
-                                        "SET l.deletedAt = CURRENT_TIMESTAMP " +
-                                        "WHERE l.id = :id")
+                                "SET l.deletedAt = CURRENT_TIMESTAMP " +
+                                "WHERE l.id = :id")
                         .setParameter("id", id)
                         .executeUpdate();
             }
-
             return null;
         });
     }

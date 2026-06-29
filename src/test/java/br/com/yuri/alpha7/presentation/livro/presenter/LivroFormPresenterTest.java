@@ -3,6 +3,7 @@ package br.com.yuri.alpha7.presentation.livro.presenter;
 import br.com.yuri.alpha7.application.editora.EditoraUseCase;
 import br.com.yuri.alpha7.application.isbn.IsbnLookupUseCase;
 import br.com.yuri.alpha7.application.livro.BookCrudUseCase;
+import br.com.yuri.alpha7.application.livro.BookSearchUseCase;
 import br.com.yuri.alpha7.domain.editora.model.Editora;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
 import br.com.yuri.alpha7.domain.livro.vo.ISBN;
@@ -16,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import javax.swing.SwingUtilities;
+import java.util.ArrayList;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -28,6 +30,7 @@ class LivroFormPresenterTest {
 
     @Mock private LivroFormView     view;
     @Mock private BookCrudUseCase   crudUseCase;
+    @Mock private BookSearchUseCase searchUseCase;
     @Mock private IsbnLookupUseCase isbnLookupUseCase;
     @Mock private EditoraUseCase    editoraUseCase;
 
@@ -40,7 +43,7 @@ class LivroFormPresenterTest {
     @BeforeEach
     void setUp() {
         onSuccess = mock(Runnable.class);
-        new LivroFormPresenter(view, crudUseCase, isbnLookupUseCase, editoraUseCase, onSuccess);
+        new LivroFormPresenter(view, crudUseCase, searchUseCase, isbnLookupUseCase, editoraUseCase, onSuccess);
 
         ArgumentCaptor<Runnable> isbnCaptor = ArgumentCaptor.forClass(Runnable.class);
         verify(view).onIsbnLookup(isbnCaptor.capture());
@@ -60,7 +63,7 @@ class LivroFormPresenterTest {
     void shouldPopulateViewWhenInitEdit() {
         Livro livro = livroWithId(1L);
         LivroFormPresenter presenter = new LivroFormPresenter(
-                view, crudUseCase, isbnLookupUseCase, editoraUseCase, onSuccess);
+                view, crudUseCase, searchUseCase, isbnLookupUseCase, editoraUseCase, onSuccess);
 
         presenter.initEdit(livro);
 
@@ -78,7 +81,7 @@ class LivroFormPresenterTest {
 
         isbnLookupAction.run();
 
-        verify(view).showErrorMessage(anyString());
+        verify(view).showValidationError(anyString());
         verify(isbnLookupUseCase, never()).findByIsbn(any());
     }
 
@@ -93,7 +96,7 @@ class LivroFormPresenterTest {
 
         isbnLookupAction.run();
 
-        verify(view).showErrorMessage(anyString());
+        verify(view).showValidationError(anyString());
         verify(isbnLookupUseCase, never()).findByIsbn(any());
     }
 
@@ -132,7 +135,7 @@ class LivroFormPresenterTest {
         SwingUtilities.invokeAndWait(() -> {});
 
         verify(view).setLookupEnabled(true);
-        verify(view).showErrorMessage(anyString());
+        verify(view).showValidationError(anyString());
         verify(view, never()).setLivro(any());
     }
 
@@ -151,7 +154,7 @@ class LivroFormPresenterTest {
         SwingUtilities.invokeAndWait(() -> {});
 
         verify(view).setLookupEnabled(true);
-        verify(view).showErrorMessage(anyString());
+        verify(view).showValidationError(anyString());
     }
 
     @Test
@@ -165,7 +168,7 @@ class LivroFormPresenterTest {
 
         saveAction.run();
 
-        verify(view).showErrorMessage(anyString());
+        verify(view).showValidationError(anyString());
         verify(crudUseCase, never()).save(any());
     }
 
@@ -181,7 +184,7 @@ class LivroFormPresenterTest {
 
         saveAction.run();
 
-        verify(view).showErrorMessage(anyString());
+        verify(view).showValidationError(anyString());
         verify(crudUseCase, never()).save(any());
     }
 
@@ -198,7 +201,7 @@ class LivroFormPresenterTest {
 
         saveAction.run();
 
-        verify(view).showErrorMessage(anyString());
+        verify(view).showValidationError(anyString());
         verify(crudUseCase, never()).save(any());
     }
 
@@ -216,7 +219,7 @@ class LivroFormPresenterTest {
 
         saveAction.run();
 
-        verify(view).showErrorMessage(anyString());
+        verify(view).showValidationError(anyString());
         verify(crudUseCase, never()).save(any());
     }
 
@@ -281,7 +284,7 @@ class LivroFormPresenterTest {
     void shouldPreserveIdWhenEditingBook() {
         Livro livro = livroWithId(42L);
         LivroFormPresenter presenter = new LivroFormPresenter(
-                view, crudUseCase, isbnLookupUseCase, editoraUseCase, onSuccess);
+                view, crudUseCase, searchUseCase, isbnLookupUseCase, editoraUseCase, onSuccess);
         presenter.initEdit(livro);
 
         givenValidFormData();
@@ -303,6 +306,7 @@ class LivroFormPresenterTest {
         when(view.getDataPublicacao()).thenReturn("");
         when(view.getIdioma()).thenReturn("");
         when(view.getNumeroPaginas()).thenReturn("");
+        when(view.getLivrosSemelhantes()).thenReturn(new ArrayList<>());
     }
 
     private Livro livroWithId(Long id) {

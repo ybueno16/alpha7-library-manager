@@ -46,6 +46,22 @@ public class LivroMapper {
         return livro;
     }
 
+    /**
+     * Converte a entidade para domínio incluindo a lista de livros semelhantes.
+     * Deve ser chamado dentro de uma sessão Hibernate aberta.
+     * Os semelhantes são mapeados sem recursão (suas próprias listas ficam vazias).
+     */
+    public static Livro toDomainWithSemelhantes(LivroEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+        Livro livro = toDomain(entity);
+        livro.setLivrosSemelhantes(entity.getLivrosSemelhantes().stream()
+                .map(LivroMapper::toDomain)
+                .collect(Collectors.toList()));
+        return livro;
+    }
+
     public static LivroEntity toEntity(Livro livro) {
         if (livro == null) {
             return null;

@@ -3,6 +3,7 @@ package br.com.yuri.alpha7.presentation.livro.presenter;
 import br.com.yuri.alpha7.application.editora.EditoraUseCase;
 import br.com.yuri.alpha7.application.isbn.IsbnLookupUseCase;
 import br.com.yuri.alpha7.application.livro.BookCrudUseCase;
+import br.com.yuri.alpha7.application.livro.BookSearchUseCase;
 import br.com.yuri.alpha7.domain.autor.model.Autor;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
 import br.com.yuri.alpha7.domain.livro.vo.ISBN;
@@ -10,6 +11,7 @@ import br.com.yuri.alpha7.presentation.livro.view.LivroFormView;
 
 import javax.swing.SwingWorker;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -39,6 +41,7 @@ public class LivroFormPresenter {
 
     private final LivroFormView     view;
     private final BookCrudUseCase   crudUseCase;
+    private final BookSearchUseCase searchUseCase;
     private final IsbnLookupUseCase isbnLookupUseCase;
     private final EditoraUseCase    editoraUseCase;
     private final Runnable          onSuccess;
@@ -46,17 +49,21 @@ public class LivroFormPresenter {
 
     public LivroFormPresenter(LivroFormView view,
                               BookCrudUseCase crudUseCase,
+                              BookSearchUseCase searchUseCase,
                               IsbnLookupUseCase isbnLookupUseCase,
                               EditoraUseCase editoraUseCase,
                               Runnable onSuccess) {
         this.view              = view;
         this.crudUseCase       = crudUseCase;
+        this.searchUseCase     = searchUseCase;
         this.isbnLookupUseCase = isbnLookupUseCase;
         this.editoraUseCase    = editoraUseCase;
         this.onSuccess         = onSuccess;
         view.onIsbnLookup(this::lookupByIsbn);
         view.onSave(this::save);
         view.onCancel(view::close);
+        view.onAddSemelhante(this::addSemelhante);
+        view.onRemoveSemelhante(this::removeSemelhante);
     }
 
     public void initCreate() {
@@ -66,12 +73,13 @@ public class LivroFormPresenter {
     public void initEdit(Livro livro) {
         this.livroId = livro.getId();
         view.setLivro(livro);
+        view.setLivrosSemelhantes(livro.getLivrosSemelhantes());
     }
 
     private void lookupByIsbn() {
         String isbnStr = view.getIsbn();
         if (isbnStr.isEmpty()) {
-            view.showErrorMessage("Digite um ISBN antes de buscar.");
+            view.showValidationError("Digite um ISBN antes de buscar.");
             return;
         }
 
@@ -79,7 +87,7 @@ public class LivroFormPresenter {
         try {
             isbn = new ISBN(isbnStr);
         } catch (Exception e) {
-            view.showErrorMessage("ISBN inválido: " + e.getMessage());
+            view.showValidationError("ISBN inválido: " + e.getMessage());
             return;
         }
 
@@ -101,13 +109,38 @@ public class LivroFormPresenter {
                         view.setLivro(result.get());
                         return;
                     }
-                    view.showErrorMessage("Nenhum livro encontrado para o ISBN informado.");
+                    view.showValidationError("Nenhum livro encontrado para o ISBN informado.");
                 } catch (Exception e) {
                     Throwable cause = e.getCause() != null ? e.getCause() : e;
-                    view.showErrorMessage("Erro ao buscar ISBN: " + cause.getMessage());
+                    view.showValidationError("Erro ao buscar ISBN: " + cause.getMessage());
                 }
             }
         }.execute();
+    }
+
+    private void addSemelhante() {
+        List<Livro> todos = searchUseCase.findAll();
+        List<Livro> atuais = view.getLivrosSemelhantes();
+        List<Long> idsAtuais = atuais.stream()
+                .map(Livro::getId)
+                .collect(Collectors.toList());
+        List<Livro> disponiveis = todos.stream()
+                .filter(l -> l.getId() != null && !l.getId().equals(livroId))
+                .filter(l -> !idsAtuais.contains(l.getId()))
+                .collect(Collectors.toList());
+        view.pickSemelhante(disponiveis).ifPresent(escolhido -> {
+            List<Livro> novos = new ArrayList<>(atuais);
+            novos.add(escolhido);
+            view.setLivrosSemelhantes(novos);
+        });
+    }
+
+    private void removeSemelhante() {
+        view.getSelectedSemelhante().ifPresent(semelhante -> {
+            List<Livro> atuais = new ArrayList<>(view.getLivrosSemelhantes());
+            atuais.remove(semelhante);
+            view.setLivrosSemelhantes(atuais);
+        });
     }
 
     private void save() {
@@ -123,21 +156,22 @@ public class LivroFormPresenter {
     }
 
     private boolean validate() {
+        view.clearValidationError();
         if (view.getTitulo().isEmpty()) {
-            view.showErrorMessage("Título é obrigatório.");
+            view.showValidationError("Título é obrigatório.");
             return false;
         }
         if (view.getIsbn().isEmpty()) {
-            view.showErrorMessage("ISBN é obrigatório.");
+            view.showValidationError("ISBN é obrigatório.");
             return false;
         }
         if (view.getAutores().isEmpty()) {
-            view.showErrorMessage("Informe ao menos um autor.");
+            view.showValidationError("Informe ao menos um autor.");
             return false;
         }
         String dateStr = view.getDataPublicacao();
         if (!dateStr.isEmpty() && !dateStr.matches("\\d{4}")) {
-            view.showErrorMessage("Publicação inválida. Use apenas o ano (ex: 2003).");
+            view.showValidationError("Publicação inválida. Use apenas o ano (ex: 2003).");
             return false;
         }
         return true;
@@ -146,11 +180,14 @@ public class LivroFormPresenter {
     private Livro buildLivro() {
         Livro livro = new Livro();
 
-        if (livroId != null) livro.setId(livroId);
+        if (livroId != null) {
+            livro.setId(livroId);
+        }
 
         livro.setTitulo(view.getTitulo());
         livro.setIsbn(new ISBN(view.getIsbn()));
         livro.setAutores(parseAutores(view.getAutores()));
+        livro.setLivrosSemelhantes(view.getLivrosSemelhantes());
 
         String editoraStr = view.getEditora();
         if (!editoraStr.isEmpty()) {
@@ -162,12 +199,15 @@ public class LivroFormPresenter {
             livro.setDataPublicacao(parsePublishDate(dateStr));
         }
 
-
         String idioma = view.getIdioma();
-        if (!idioma.isEmpty()) livro.setIdioma(idioma);
+        if (!idioma.isEmpty()) {
+            livro.setIdioma(idioma);
+        }
 
         String pagesStr = view.getNumeroPaginas();
-        if (!pagesStr.isEmpty()) livro.setNumeroPaginas(Integer.parseInt(pagesStr));
+        if (!pagesStr.isEmpty()) {
+            livro.setNumeroPaginas(Integer.parseInt(pagesStr));
+        }
 
         return livro;
     }
