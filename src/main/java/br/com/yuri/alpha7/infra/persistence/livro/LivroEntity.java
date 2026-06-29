@@ -1,7 +1,7 @@
 package br.com.yuri.alpha7.infra.persistence.livro;
 
 import br.com.yuri.alpha7.domain.livro.vo.ISBN;
-import br.com.yuri.alpha7.infra.persistence.AuditableEntity;
+import br.com.yuri.alpha7.domain.AuditableEntity;
 import br.com.yuri.alpha7.infra.persistence.autor.AutorEntity;
 import br.com.yuri.alpha7.infra.persistence.editora.EditoraEntity;
 import org.hibernate.annotations.Cache;

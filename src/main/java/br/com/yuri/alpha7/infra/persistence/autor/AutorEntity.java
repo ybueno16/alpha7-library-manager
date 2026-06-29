@@ -1,6 +1,6 @@
 package br.com.yuri.alpha7.infra.persistence.autor;
 
-import br.com.yuri.alpha7.infra.persistence.AuditableEntity;
+import br.com.yuri.alpha7.domain.AuditableEntity;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 
