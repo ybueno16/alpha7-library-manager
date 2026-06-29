@@ -63,6 +63,13 @@ public interface LivroListView extends CrudView {
     void onImport(Runnable acao);
 
     /**
+     * Registra a ação a ser executada quando o usuário solicitar exportação do acervo para CSV.
+     *
+     * @param acao ação de exportação
+     */
+    void onExport(Runnable acao);
+
+    /**
      * Registra a ação a ser executada quando o usuário disparar uma busca.
      *
      * @param acao ação de busca

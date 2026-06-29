@@ -3,6 +3,9 @@ package br.com.yuri.alpha7.presentation.livro.view;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
 import br.com.yuri.alpha7.presentation.View;
 
+import java.util.List;
+import java.util.Optional;
+
 /**
  * Contrato do formulário de cadastro e edição de livros no padrão MVP.
  *
@@ -107,5 +110,60 @@ public interface LivroFormView extends View {
      * @param enabled {@code true} para habilitar, {@code false} para desabilitar
      */
     void setLookupEnabled(boolean enabled);
+
+    /**
+     * Exibe uma mensagem de erro de validação em texto vermelho abaixo do formulário.
+     *
+     * @param message mensagem a exibir
+     */
+    void showValidationError(String message);
+
+    /** Remove a mensagem de erro de validação exibida por {@link #showValidationError(String)}. */
+    void clearValidationError();
+
+    /**
+     * Retorna os livros semelhantes atualmente exibidos no formulário.
+     *
+     * @return lista de livros semelhantes selecionados pelo usuário
+     */
+    List<Livro> getLivrosSemelhantes();
+
+    /**
+     * Define a lista de livros semelhantes exibida no formulário.
+     * Chamado ao iniciar o modo de edição.
+     *
+     * @param semelhantes lista de livros semelhantes do livro sendo editado
+     */
+    void setLivrosSemelhantes(List<Livro> semelhantes);
+
+    /**
+     * Retorna o livro semelhante selecionado na lista, se houver.
+     *
+     * @return livro selecionado, ou vazio se nenhum estiver selecionado
+     */
+    Optional<Livro> getSelectedSemelhante();
+
+    /**
+     * Abre um seletor para que o usuário escolha um livro da lista fornecida.
+     * Usado pelo presenter para adicionar livros semelhantes.
+     *
+     * @param disponiveis livros que podem ser selecionados (já filtrados pelo presenter)
+     * @return livro escolhido, ou vazio se o usuário cancelou
+     */
+    Optional<Livro> pickSemelhante(List<Livro> disponiveis);
+
+    /**
+     * Registra a ação a ser executada quando o usuário acionar "Adicionar" semelhante.
+     *
+     * @param acao ação de adição
+     */
+    void onAddSemelhante(Runnable acao);
+
+    /**
+     * Registra a ação a ser executada quando o usuário acionar "Remover" semelhante.
+     *
+     * @param acao ação de remoção
+     */
+    void onRemoveSemelhante(Runnable acao);
 }
 
