@@ -8,6 +8,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Implementação JPA do {@link EditoraRepository} usando Hibernate/JPA via {@link br.com.yuri.alpha7.infra.persistence.BaseRepository}.
+ *
+ * <p>A operação mais utilizada em produção é {@link #findByNome(String)}, chamada pelo
+ * {@link br.com.yuri.alpha7.application.editora.EditoraUseCase} antes de cada salvamento de livro
+ * para evitar duplicatas de editora com o mesmo nome. A exclusão segue o padrão de soft delete
+ * idêntico ao {@link br.com.yuri.alpha7.infra.persistence.autor.AutorRepositoryImpl}.
+ */
 public class EditoraRepositoryImpl extends BaseRepository implements EditoraRepository {
 
     @Override
@@ -33,7 +41,7 @@ public class EditoraRepositoryImpl extends BaseRepository implements EditoraRepo
         return executeQuery(em -> {
             List<EditoraEntity> results = em.createQuery(
                             "SELECT e FROM Editora e " +
-                            "WHERE e.nome = :nome " +
+                            "WHERE LOWER(e.nome) = LOWER(:nome) " +
                             "AND e.deletedAt IS NULL", EditoraEntity.class)
                     .setParameter("nome", nome)
                     .getResultList();

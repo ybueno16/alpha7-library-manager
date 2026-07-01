@@ -8,6 +8,17 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Implementação JPA do {@link AutorRepository} usando Hibernate/JPA via {@link br.com.yuri.alpha7.infra.persistence.BaseRepository}.
+ *
+ * <p>Todas as operações de escrita participam de uma transação gerenciada por
+ * {@code executeInTransaction}. As operações de leitura usam {@code executeQuery},
+ * que abre um {@code EntityManager} sem transação explícita.
+ *
+ * <p>A exclusão é implementada como soft delete: em vez de remover o registro, o campo
+ * {@code deleted_at} é atualizado via JPQL para o timestamp atual. Consultas de leitura
+ * filtram automaticamente registros com {@code deleted_at IS NOT NULL}.
+ */
 public class AutorRepositoryImpl extends BaseRepository implements AutorRepository {
 
     @Override
@@ -33,7 +44,7 @@ public class AutorRepositoryImpl extends BaseRepository implements AutorReposito
         return executeQuery(em -> {
             List<AutorEntity> results = em.createQuery(
                             "SELECT a FROM Autor a " +
-                            "WHERE a.nome = :nome " +
+                            "WHERE LOWER(a.nome) = LOWER(:nome) " +
                             "AND a.deletedAt IS NULL", AutorEntity.class)
                     .setParameter("nome", nome)
                     .getResultList();

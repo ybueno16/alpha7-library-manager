@@ -10,6 +10,21 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Implementação JPA do {@link LivroRepository} usando Hibernate/JPA via {@link br.com.yuri.alpha7.infra.persistence.BaseRepository}.
+ *
+ * <p>Pontos de atenção na implementação:
+ * <ul>
+ *   <li>{@link #save(br.com.yuri.alpha7.domain.livro.model.Livro)} resolve os livros semelhantes
+ *       via {@code em.getReference} para evitar carregar as entidades completas, já que só a
+ *       referência de chave estrangeira é necessária para persistir o relacionamento.</li>
+ *   <li>{@link #findAll()} e {@link #findByFiltro(String)} usam {@code LEFT JOIN FETCH} para
+ *       carregar editora e autores em uma única query e evitar o problema N+1.</li>
+ *   <li>{@link #findByIsbn(ISBN)} exclui registros com soft delete; {@link #findByIsbnIncludingDeleted(ISBN)}
+ *       ignora o filtro, usado durante a importação para detectar e restaurar livros deletados.</li>
+ *   <li>A exclusão é soft delete via JPQL {@code SET l.deletedAt = CURRENT_TIMESTAMP}.</li>
+ * </ul>
+ */
 public class LivroRepositoryImpl extends BaseRepository implements LivroRepository {
 
     @Override
@@ -90,19 +105,22 @@ public class LivroRepositoryImpl extends BaseRepository implements LivroReposito
 
     @Override
     public List<Livro> findByFiltro(String termo) {
+        String safe = termo.replace("!", "!!")
+                .replace("%", "!%")
+                .replace("_", "!_");
         return executeQuery(em ->
                 em.createQuery(
                                 "SELECT DISTINCT l FROM Livro l " +
                                 "LEFT JOIN FETCH l.editora e " +
                                 "LEFT JOIN FETCH l.autores a " +
                                 "WHERE l.deletedAt IS NULL " +
-                                "AND (LOWER(l.titulo)         LIKE LOWER(:termo) " +
-                                "OR   LOWER(l.idioma)         LIKE LOWER(:termo) " +
-                                "OR   LOWER(e.nome)           LIKE LOWER(:termo) " +
-                                "OR   LOWER(a.nome)           LIKE LOWER(:termo) " +
-                                "OR   CAST(l.isbn AS string)  LIKE LOWER(:termo)) " +
+                                "AND (LOWER(l.titulo)         LIKE LOWER(:termo) ESCAPE '!' " +
+                                "OR   LOWER(l.idioma)         LIKE LOWER(:termo) ESCAPE '!' " +
+                                "OR   LOWER(e.nome)           LIKE LOWER(:termo) ESCAPE '!' " +
+                                "OR   LOWER(a.nome)           LIKE LOWER(:termo) ESCAPE '!' " +
+                                "OR   CAST(l.isbn AS string)  LIKE LOWER(:termo) ESCAPE '!') " +
                                 "ORDER BY l.titulo", LivroEntity.class)
-                        .setParameter("termo", "%" + termo + "%")
+                        .setParameter("termo", "%" + safe + "%")
                         .getResultList()
                         .stream()
                         .map(LivroMapper::toDomain)

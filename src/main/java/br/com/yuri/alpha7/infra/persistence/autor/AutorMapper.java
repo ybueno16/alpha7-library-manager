@@ -2,6 +2,15 @@ package br.com.yuri.alpha7.infra.persistence.autor;
 
 import br.com.yuri.alpha7.domain.autor.model.Autor;
 
+/**
+ * Utilitário estático para conversão bidirecional entre {@link AutorEntity} (camada JPA)
+ * e {@link br.com.yuri.alpha7.domain.autor.model.Autor} (domínio).
+ *
+ * <p>A separação entre entidade JPA e modelo de domínio garante que o domínio permaneça
+ * livre de anotações de framework. Este mapper é o único ponto de acoplamento entre as duas
+ * representações. Ambos os métodos retornam {@code null} quando recebem {@code null},
+ * permitindo chamadas seguras com valores opcionais.
+ */
 public class AutorMapper {
 
     private AutorMapper() {}

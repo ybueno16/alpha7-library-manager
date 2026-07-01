@@ -57,6 +57,7 @@ public class LivroMapper {
         }
         Livro livro = toDomain(entity);
         livro.setLivrosSemelhantes(entity.getLivrosSemelhantes().stream()
+                .filter(s -> !s.isDeleted())
                 .map(LivroMapper::toDomain)
                 .collect(Collectors.toList()));
         return livro;
