@@ -1,7 +1,7 @@
 package br.com.yuri.alpha7.infra.persistence.livro;
 
 import br.com.yuri.alpha7.domain.livro.vo.ISBN;
-import br.com.yuri.alpha7.domain.AuditableEntity;
+import br.com.yuri.alpha7.infra.persistence.AuditableEntity;
 import br.com.yuri.alpha7.infra.persistence.autor.AutorEntity;
 import br.com.yuri.alpha7.infra.persistence.editora.EditoraEntity;
 import org.hibernate.annotations.Cache;
@@ -12,6 +12,23 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Entidade JPA principal que representa um livro na tabela {@code livro}.
+ *
+ * <p>Relacionamentos:
+ * <ul>
+ *   <li>{@code @ManyToMany} com {@link AutorEntity} via tabela de junção {@code livro_autor}.
+ *       O cascade {@code PERSIST/MERGE} permite que autores novos sejam gravados junto com o livro.</li>
+ *   <li>{@code @ManyToMany} com {@link LivroEntity} (auto-relacionamento) via {@code livro_semelhante}
+ *       para a funcionalidade de livros semelhantes. Sem cascade — semelhantes já existem no banco.</li>
+ *   <li>{@code @ManyToOne} com {@link EditoraEntity}: editora pode ser nula.</li>
+ * </ul>
+ *
+ * <p>O ISBN é persistido pelo {@link br.com.yuri.alpha7.infra.persistence.converter.IsbnConverter},
+ * que converte o Value Object {@link br.com.yuri.alpha7.domain.livro.vo.ISBN} para {@code String}
+ * e vice-versa. A coluna possui constraint {@code UNIQUE} no banco de dados como segunda linha de defesa
+ * (a primeira é a validação em {@link br.com.yuri.alpha7.application.livro.BookCrudUseCase}).
+ */
 @Entity(name = "Livro")
 @Table(name = "livro")
 @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)

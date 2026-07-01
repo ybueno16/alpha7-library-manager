@@ -1,12 +1,22 @@
 package br.com.yuri.alpha7.infra.persistence.autor;
 
-import br.com.yuri.alpha7.domain.AuditableEntity;
+import br.com.yuri.alpha7.infra.persistence.AuditableEntity;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 
 import javax.persistence.*;
 import java.time.LocalDate;
 
+/**
+ * Entidade JPA que representa um autor na tabela {@code autor}.
+ *
+ * <p>Estende {@link AuditableEntity} para herdar os campos de auditoria
+ * ({@code created_at}, {@code updated_at}, {@code deleted_at}) e o mecanismo de soft delete.
+ *
+ * <p>O cache de segundo nível do Hibernate ({@code READ_WRITE}) é habilitado porque autores
+ * raramente são alterados após a importação, tornando o cache especialmente eficaz para as
+ * consultas de relacionamento realizadas durante o carregamento de livros.
+ */
 @Entity(name = "Autor")
 @Table(name = "autor")
 @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)

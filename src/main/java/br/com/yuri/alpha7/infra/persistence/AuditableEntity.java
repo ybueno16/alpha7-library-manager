@@ -1,4 +1,4 @@
-package br.com.yuri.alpha7.domain;
+package br.com.yuri.alpha7.infra.persistence;
 
 import javax.persistence.Column;
 import javax.persistence.MappedSuperclass;
