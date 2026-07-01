@@ -1,5 +1,9 @@
 package br.com.yuri.alpha7.config;
 
+import br.com.yuri.alpha7.application.UnitOfWork;
+import br.com.yuri.alpha7.domain.autor.repository.AutorRepository;
+import br.com.yuri.alpha7.domain.editora.repository.EditoraRepository;
+import br.com.yuri.alpha7.domain.livro.repository.LivroRepository;
 import br.com.yuri.alpha7.infra.persistence.HibernateUnitOfWork;
 import br.com.yuri.alpha7.infra.persistence.HibernateUtil;
 import br.com.yuri.alpha7.infra.persistence.autor.AutorRepositoryImpl;
@@ -20,10 +24,20 @@ public class RepositoryConfig {
         this.unitOfWork = new HibernateUnitOfWork();
     }
 
-    public LivroRepositoryImpl livroRepository() { return livroRepository; }
-    public AutorRepositoryImpl autorRepository() { return autorRepository; }
-    public EditoraRepositoryImpl editoraRepository() { return editoraRepository; }
-    public HibernateUnitOfWork unitOfWork() { return unitOfWork; }
+    public LivroRepository livroRepository() {
+        return new LivroRepositoryImpl();
+    }
+    public AutorRepository autorRepository() {
+        return new AutorRepositoryImpl();
+    }
+
+    public EditoraRepository editoraRepository() {
+        return new EditoraRepositoryImpl();
+    }
+
+    public UnitOfWork unitOfWork() {
+        return new HibernateUnitOfWork();
+    }
 
     public void shutdown() {
         HibernateUtil.shutdown();
