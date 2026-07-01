@@ -6,6 +6,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * DTO que representa a resposta JSON do endpoint de ISBN da OpenLibrary API
+ * (ex: {@code https://openlibrary.org/isbn/9780140328721.json}).
+ *
+ * <p>Contém apenas os campos utilizados pelo mapeador; todos os demais são descartados por
+ * {@code @JsonIgnoreProperties}. Autores e idiomas são retornados como referências ({@code /authors/OL…}
+ * e {@code /languages/eng}), resolvidas posteriormente por chamadas adicionais à API.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OpenLibraryBookResponse {
 

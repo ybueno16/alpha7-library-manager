@@ -1,5 +1,8 @@
 package br.com.yuri.alpha7.application.livro;
 
+import br.com.yuri.alpha7.application.UnitOfWork;
+import br.com.yuri.alpha7.domain.editora.model.Editora;
+import br.com.yuri.alpha7.domain.editora.repository.EditoraRepository;
 import br.com.yuri.alpha7.domain.exception.BookNotFoundException;
 import br.com.yuri.alpha7.domain.exception.IsbnInvalidoException;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
@@ -18,10 +21,16 @@ import java.util.Optional;
  */
 public class BookCrudUseCase {
 
-    private final LivroRepository livroRepository;
+    private final LivroRepository   livroRepository;
+    private final EditoraRepository editoraRepository;
+    private final UnitOfWork        unitOfWork;
 
-    public BookCrudUseCase(LivroRepository livroRepository) {
-        this.livroRepository = livroRepository;
+    public BookCrudUseCase(LivroRepository livroRepository,
+                           EditoraRepository editoraRepository,
+                           UnitOfWork unitOfWork) {
+        this.livroRepository   = livroRepository;
+        this.editoraRepository = editoraRepository;
+        this.unitOfWork        = unitOfWork;
     }
 
     /**
@@ -32,6 +41,19 @@ public class BookCrudUseCase {
      * @return livro salvo com id preenchido
      * @throws IsbnInvalidoException se o ISBN já estiver cadastrado para outro livro
      */
+    public Livro saveWithEditora(Livro livro, String editoraNome) {
+        Livro[] result = new Livro[1];
+        unitOfWork.execute(() -> {
+            if (editoraNome != null && !editoraNome.isEmpty()) {
+                Editora editora = editoraRepository.findByNome(editoraNome)
+                        .orElseGet(() -> editoraRepository.save(new Editora(editoraNome)));
+                livro.setEditora(editora);
+            }
+            result[0] = save(livro);
+        });
+        return result[0];
+    }
+
     public Livro save(Livro livro) throws IsbnInvalidoException {
         Optional<Livro> existing = livroRepository.findByIsbn(livro.getIsbn());
         if (existing.isPresent() && isbnBelongsToAnotherBook(livro.getId(), existing.get().getId())) {

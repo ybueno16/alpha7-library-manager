@@ -1,5 +1,6 @@
 package br.com.yuri.alpha7.application.livro;
 
+import br.com.yuri.alpha7.application.importacao.parser.CsvImportParser;
 import br.com.yuri.alpha7.domain.autor.model.Autor;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
 import br.com.yuri.alpha7.domain.livro.repository.LivroRepository;
@@ -14,7 +15,7 @@ import java.util.stream.Collectors;
 /**
  * Caso de uso responsável por exportar o acervo de livros para um arquivo CSV.
  *
- * <p>O formato gerado é compatível com o importador {@link br.com.yuri.alpha7.application.importacao.CsvImportParser}:
+ * <p>O formato gerado é compatível com o importador {@link CsvImportParser}:
  * o cabeçalho e a ordem das colunas são idênticos, permitindo que um arquivo exportado
  * possa ser editado e reimportado sem modificações estruturais.
  */

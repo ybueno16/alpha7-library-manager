@@ -4,6 +4,16 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 
+/**
+ * DTO que representa a resposta JSON do endpoint de autores da OpenLibrary API
+ * (ex: {@code https://openlibrary.org/authors/OL23919A.json}).
+ *
+ * <p>Campos desconhecidos são ignorados via {@code @JsonIgnoreProperties} para que a classe
+ * não precise ser atualizada a cada mudança no schema da API.
+ *
+ * <p>O campo {@code bio} é mapeado como {@link com.fasterxml.jackson.databind.JsonNode} porque
+ * a API retorna tanto uma {@code String} simples quanto um objeto {@code {"type": ..., "value": ...}}.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OpenLibraryAuthorResponse {
 
