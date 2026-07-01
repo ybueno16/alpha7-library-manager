@@ -1,5 +1,7 @@
 package br.com.yuri.alpha7.application.livro;
 
+import br.com.yuri.alpha7.application.UnitOfWork;
+import br.com.yuri.alpha7.domain.editora.repository.EditoraRepository;
 import br.com.yuri.alpha7.domain.exception.BookNotFoundException;
 import br.com.yuri.alpha7.domain.exception.IsbnInvalidoException;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
@@ -21,7 +23,11 @@ import static org.mockito.Mockito.*;
 class BookCrudUseCaseTest {
 
     @Mock
-    private LivroRepository livroRepository;
+    private LivroRepository  livroRepository;
+    @Mock
+    private EditoraRepository editoraRepository;
+    @Mock
+    private UnitOfWork        unitOfWork;
 
     @InjectMocks
     private BookCrudUseCase useCase;

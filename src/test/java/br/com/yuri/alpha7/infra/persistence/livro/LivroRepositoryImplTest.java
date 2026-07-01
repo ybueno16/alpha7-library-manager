@@ -241,6 +241,34 @@ class LivroRepositoryImplTest extends AbstractRepositoryTest {
         );
     }
 
+    @Test
+    @DisplayName(
+            "Given a soft-deleted book," +
+            " when findByIsbnIncludingDeleted is called with its ISBN," +
+            " then the deleted book is returned"
+    )
+    void shouldReturnSoftDeletedBookWhenSearchingIncludingDeleted() {
+        Livro saved = livroRepository.save(basicBook("Deleted Book", ISBN_EFFECTIVE_JAVA));
+        livroRepository.delete(saved.getId());
+        assertFalse(livroRepository.findByIsbn(ISBN_EFFECTIVE_JAVA).isPresent());
+
+        Optional<Livro> result = livroRepository.findByIsbnIncludingDeleted(ISBN_EFFECTIVE_JAVA);
+
+        assertTrue(result.isPresent());
+        assertEquals("Deleted Book", result.get().getTitulo());
+    }
+
+    @Test
+    @DisplayName(
+            "Given an empty database," +
+            " when findAll is called," +
+            " then an empty list is returned"
+    )
+    void shouldReturnEmptyListWhenNoBooksExist() {
+        List<Livro> result = livroRepository.findAll();
+        assertTrue(result.isEmpty());
+    }
+
     private Livro basicBook(String titulo, ISBN isbn) {
         Livro livro = new Livro();
         livro.setTitulo(titulo);

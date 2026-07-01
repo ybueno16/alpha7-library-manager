@@ -48,6 +48,20 @@ class HibernateUnitOfWorkTest extends AbstractRepositoryTest {
 
     @Test
     @DisplayName(
+            "Given an action that throws a LibraryException," +
+            " when execute is called," +
+            " then transaction is rolled back and the same exception is re-thrown"
+    )
+    void shouldRollbackAndRethrowOriginalLibraryException() {
+        LibraryException original = new LibraryException("domain constraint violated");
+        LibraryException thrown = assertThrows(LibraryException.class, () ->
+                unitOfWork.execute(() -> { throw original; })
+        );
+        assertSame(original, thrown);
+    }
+
+    @Test
+    @DisplayName(
             "Given an active transaction," +
             " when getCurrentEntityManager is called inside execute," +
             " then the entity manager is present"

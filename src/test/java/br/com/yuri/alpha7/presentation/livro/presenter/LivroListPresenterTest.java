@@ -1,6 +1,5 @@
 package br.com.yuri.alpha7.presentation.livro.presenter;
 
-import br.com.yuri.alpha7.application.editora.EditoraUseCase;
 import br.com.yuri.alpha7.application.importacao.ImportUseCase;
 import br.com.yuri.alpha7.application.isbn.IsbnLookupUseCase;
 import br.com.yuri.alpha7.application.livro.BookCrudUseCase;
@@ -34,7 +33,6 @@ class LivroListPresenterTest {
     @Mock private BookExportUseCase exportUseCase;
     @Mock private ImportUseCase     importUseCase;
     @Mock private IsbnLookupUseCase isbnLookupUseCase;
-    @Mock private EditoraUseCase    editoraUseCase;
 
     private Runnable searchAction;
     private Runnable deleteAction;
@@ -44,7 +42,7 @@ class LivroListPresenterTest {
     @BeforeEach
     void setUp() {
         presenter = new LivroListPresenter(
-                view, searchUseCase, crudUseCase, exportUseCase, importUseCase, isbnLookupUseCase, editoraUseCase);
+                null, view, searchUseCase, crudUseCase, exportUseCase, importUseCase, isbnLookupUseCase);
 
         ArgumentCaptor<Runnable> searchCaptor = ArgumentCaptor.forClass(Runnable.class);
         verify(view).onSearch(searchCaptor.capture());
@@ -188,6 +186,41 @@ class LivroListPresenterTest {
         editAction.run();
 
         verify(view, never()).showErrorMessage(anyString());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a book selected for edit but not found by id," +
+            " when edit is triggered," +
+            " then an error is shown and the list is refreshed"
+    )
+    void shouldShowErrorAndRefreshWhenSelectedLivroNotFoundById() {
+        when(view.getSelectedLivro()).thenReturn(Optional.of(livroWithId(1L)));
+        when(crudUseCase.findById(1L)).thenReturn(Optional.empty());
+        when(searchUseCase.findAll()).thenReturn(Collections.emptyList());
+
+        editAction.run();
+
+        verify(view).showErrorMessage(anyString());
+        verify(view).showLivros(any());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a book fails to delete," +
+            " when delete is confirmed," +
+            " then an error message is shown after the list is refreshed"
+    )
+    void shouldShowErrorMessageWhenDeletionThrows() {
+        when(view.getSelectedLivros()).thenReturn(Collections.singletonList(livroWithId(7L)));
+        when(view.confirm(anyString())).thenReturn(true);
+        when(searchUseCase.findAll()).thenReturn(Collections.emptyList());
+        doThrow(new RuntimeException("constraint violation")).when(crudUseCase).delete(7L);
+
+        deleteAction.run();
+
+        verify(view).showLivros(any());
+        verify(view).showErrorMessage(anyString());
     }
 
     private Livro livroWithId(Long id) {

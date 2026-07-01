@@ -1,6 +1,9 @@
 package br.com.yuri.alpha7.application.importacao;
 
 import br.com.yuri.alpha7.application.UnitOfWork;
+import br.com.yuri.alpha7.application.importacao.model.ImportPreviewRecord;
+import br.com.yuri.alpha7.application.importacao.model.ImportResult;
+import br.com.yuri.alpha7.application.importacao.parser.CsvImportParser;
 import br.com.yuri.alpha7.domain.autor.model.Autor;
 import br.com.yuri.alpha7.domain.autor.repository.AutorRepository;
 import br.com.yuri.alpha7.domain.editora.model.Editora;
@@ -138,7 +141,7 @@ class ImportUseCaseTest {
                 "Invalid Book,INVALID,Author,Publisher,2023-01-01,EN,100"
         ), "test.csv");
 
-        assertEquals(0, result.getTotalSaved());
+        assertEquals(0, result.getTotalNew());
         assertTrue(result.hasErrors());
         assertEquals(1, result.getErrors().size());
         verify(livroRepository, never()).save(any());
@@ -187,7 +190,7 @@ class ImportUseCaseTest {
         ), "test.csv");
 
         assertEquals(2, result.getTotalProcessed());
-        assertEquals(1, result.getTotalSaved());
+        assertEquals(1, result.getTotalNew());
         assertEquals(1, result.getErrors().size());
     }
 
@@ -237,6 +240,157 @@ class ImportUseCaseTest {
 
         assertEquals(1, result.getTotalNew());
         verify(livroRepository).save(argThat(l -> l.getAutores().size() == 1));
+    }
+
+    @Test
+    @DisplayName(
+            "Given a file with an unsupported extension," +
+            " when preview is called," +
+            " then ImportException is thrown"
+    )
+    void shouldThrowImportExceptionWhenFileExtensionIsUnsupported() {
+        assertThrows(br.com.yuri.alpha7.domain.exception.ImportException.class, () ->
+                useCase.preview(csvStream("anything"), "data.xlsx")
+        );
+    }
+
+    @Test
+    @DisplayName(
+            "Given a CSV line with an invalid date format," +
+            " when preview is called," +
+            " then the record is flagged with ERRO status"
+    )
+    void shouldFlagErrorWhenDateFormatIsInvalid() {
+        List<ImportPreviewRecord> previews = useCase.preview(csvStream(
+                "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
+                "Book,9780132350884,Author,Pub,31/12/2023,EN,100"
+        ), "test.csv");
+
+        assertEquals(1, previews.size());
+        assertEquals(ImportPreviewRecord.Status.ERRO, previews.get(0).getStatus());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a CSV line with a non-numeric page count," +
+            " when preview is called," +
+            " then the record is flagged with ERRO status"
+    )
+    void shouldFlagErrorWhenPageCountIsNotNumeric() {
+        List<ImportPreviewRecord> previews = useCase.preview(csvStream(
+                "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
+                "Book,9780132350884,Author,Pub,2023-01-01,EN,abc"
+        ), "test.csv");
+
+        assertEquals(1, previews.size());
+        assertEquals(ImportPreviewRecord.Status.ERRO, previews.get(0).getStatus());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a preview with a record deselected by the user," +
+            " when importSelected is called," +
+            " then the deselected record is skipped and not saved"
+    )
+    void shouldSkipDeselectedRecordsOnImport() {
+        List<ImportPreviewRecord> previews = useCase.preview(csvStream(
+                "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
+                "Book,9780132350884,Author,Pub,2023-01-01,EN,100"
+        ), "test.csv");
+
+        previews.get(0).setSelecionado(false);
+        ImportResult result = useCase.importSelected(previews);
+
+        assertEquals(0, result.getTotalNew());
+        verify(livroRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a CSV line with an empty titulo field," +
+            " when preview is called," +
+            " then the record is flagged with ERRO status"
+    )
+    void shouldFlagErrorWhenTituloIsEmpty() {
+        List<ImportPreviewRecord> previews = useCase.preview(csvStream(
+                "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
+                ",9780132350884,Author,Pub,2023-01-01,EN,100"
+        ), "test.csv");
+
+        assertEquals(1, previews.size());
+        assertEquals(ImportPreviewRecord.Status.ERRO, previews.get(0).getStatus());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a filename without a dot," +
+            " when preview is called," +
+            " then ImportException is thrown"
+    )
+    void shouldThrowImportExceptionWhenFilenameHasNoExtension() {
+        assertThrows(br.com.yuri.alpha7.domain.exception.ImportException.class, () ->
+                useCase.preview(csvStream("anything"), "nodotfile")
+        );
+    }
+
+    @Test
+    @DisplayName(
+            "Given a valid NOVO record and the unit of work throws IsbnInvalidoException," +
+            " when importSelected is called," +
+            " then the error is recorded in the result"
+    )
+    void shouldAddErrorWhenSaveThrowsIsbnInvalidoException() {
+        doThrow(new br.com.yuri.alpha7.domain.exception.IsbnInvalidoException("dup"))
+                .when(unitOfWork).execute(any(Runnable.class));
+
+        List<ImportPreviewRecord> previews = useCase.preview(csvStream(
+                "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
+                "Book,9780132350884,Author,Pub,2023-01-01,EN,100"
+        ), "test.csv");
+        ImportResult result = useCase.importSelected(previews);
+
+        assertTrue(result.hasErrors());
+        assertEquals(1, result.getErrors().size());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a valid NOVO record and the unit of work throws ImportException," +
+            " when importSelected is called," +
+            " then the error is recorded in the result"
+    )
+    void shouldAddErrorWhenSaveThrowsImportException() {
+        doThrow(new br.com.yuri.alpha7.domain.exception.ImportException("parse fail"))
+                .when(unitOfWork).execute(any(Runnable.class));
+
+        List<ImportPreviewRecord> previews = useCase.preview(csvStream(
+                "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
+                "Book,9780132350884,Author,Pub,2023-01-01,EN,100"
+        ), "test.csv");
+        ImportResult result = useCase.importSelected(previews);
+
+        assertTrue(result.hasErrors());
+        assertEquals(1, result.getErrors().size());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a valid NOVO record and the unit of work throws a generic exception," +
+            " when importSelected is called," +
+            " then the error is recorded in the result"
+    )
+    void shouldAddErrorWhenSaveThrowsGenericException() {
+        doThrow(new RuntimeException("db failure"))
+                .when(unitOfWork).execute(any(Runnable.class));
+
+        List<ImportPreviewRecord> previews = useCase.preview(csvStream(
+                "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
+                "Book,9780132350884,Author,Pub,2023-01-01,EN,100"
+        ), "test.csv");
+        ImportResult result = useCase.importSelected(previews);
+
+        assertTrue(result.hasErrors());
+        assertEquals(1, result.getErrors().size());
     }
 
     private ImportResult importFile(InputStream stream, String filename) {
