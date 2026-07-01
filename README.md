@@ -15,7 +15,9 @@ Sistema de gerenciamento de acervo para pequenas bibliotecas. Desenvolvido como 
 - **Criação e edição** via formulário com validação de campos obrigatórios e formato de ISBN
 - **Exclusão** com confirmação de diálogo
 - **Busca automática por ISBN** — consulta a API pública da OpenLibrary e preenche o formulário; executa em background com `SwingWorker` para não bloquear a UI
-- **Importação em lote via CSV** — upsert por ISBN: atualiza livros existentes e insere novos; processa cada linha em transação independente com relatório de erros por linha
+- **Importação em lote via CSV e XML** — upsert por ISBN: atualiza livros existentes e insere novos; processa cada linha em transação independente com relatório de erros por linha
+- **Exportação do acervo em CSV** — gera arquivo com todos os livros cadastrados em formato compatível com a importação
+- **Estatísticas do acervo** — painel com totais por idioma, distribuição por ano de publicação e ranking de autores e editoras
 - **Livros semelhantes** — associação many-to-many entre livros do acervo
 
 ---
@@ -66,9 +68,9 @@ br.com.yuri.alpha7/
 │
 ├── application/              # Casos de uso — orquestram domínio sem saber de infra ou UI
 │   ├── livro/                # BookCrudUseCase, BookSearchUseCase
-│   ├── editora/              # EditoraUseCase
 │   ├── isbn/                 # IsbnLookupUseCase, porta OpenLibraryClient
-│   └── importacao/           # ImportUseCase, ImportResult
+│   ├── importacao/           # ImportUseCase + parser/ (Csv, Xml) + model/ (ImportRecord, ImportResult)
+│   └── stats/                # AcervoStatsUseCase, AcervoStats
 │
 ├── infra/                    # Implementações — Hibernate, HTTP, cache
 │   ├── persistence/
@@ -79,9 +81,12 @@ br.com.yuri.alpha7/
 │   └── client/openlibrary/   # OpenLibraryClientImpl, CachingOpenLibraryClient
 │
 ├── presentation/             # Camada de UI — Swing + padrão MVP
-│   └── livro/
-│       ├── presenter/        # LivroListPresenter, LivroFormPresenter
-│       └── view/             # Interfaces LivroListView, LivroFormView + implementações Swing
+│   ├── livro/
+│   │   ├── presenter/        # LivroListPresenter, LivroFormPresenter
+│   │   └── view/             # Interfaces LivroListView, LivroFormView + implementações Swing
+│   └── stats/
+│       ├── presenter/        # AcervoStatsPresenter
+│       └── view/             # Interface AcervoStatsView + AcervoStatsPanel
 │
 └── config/                   # Wiring manual: InfrastructureConfig, RepositoryConfig, UseCaseConfig
 ```
@@ -128,6 +133,7 @@ As classes de domínio (`Livro`, `Autor`, `Editora`) são POJOs sem nenhuma anot
 | MVP + Passive View | `presentation/livro/presenter` + interfaces em `presentation/livro/view` |
 | Repository | Interfaces em `domain/*/repository`, implementações em `infra/persistence` |
 | Use Case | `application/livro`, `application/editora`, `application/isbn`, `application/importacao` |
+| Strategy | `ImportParser` + `CsvImportParser` / `XmlImportParser` — seleção do parser pelo formato do arquivo |
 | Decorator | `CachingOpenLibraryClient` adiciona cache ao `OpenLibraryClientImpl` |
 | Unit of Work | `HibernateUnitOfWork` — propaga `EntityManager` via `ThreadLocal` para repositórios na mesma thread |
 | Value Object | `ISBN` — imutável, com validação do dígito verificador (ISBN-10 e ISBN-13) |
@@ -199,7 +205,7 @@ Os testes de repositório sobem um PostgreSQL embedded (sem necessidade de Docke
 
 ---
 
-## Importação via CSV
+## Importação em lote
 
 O arquivo deve ter cabeçalho com as colunas abaixo. Apenas `titulo` e `isbn` são obrigatórios; os demais campos são opcionais.
 
@@ -219,7 +225,51 @@ The Pragmatic Programmer,9780135957059,"David Thomas,Andrew Hunt",Addison-Wesley
 | `idioma` | código de idioma (ex: `en`, `pt`) | opcional |
 | `numeroPaginas` | inteiro | opcional |
 
-Livros com ISBN já cadastrado são **atualizados** com os dados do arquivo. Erros em linhas individuais são registrados no resultado da importação sem interromper o processamento das demais.
+Livros com ISBN já cadastrado aparecem no preview com o status **JÁ EXISTE** e com o checkbox desmarcado. Para atualizá-los com os dados do arquivo, marque-os manualmente antes de confirmar a importação. Erros em linhas individuais são registrados no resultado da importação sem interromper o processamento das demais.
+
+### Importação via XML
+
+O arquivo XML deve seguir a estrutura abaixo. Os mesmos campos opcionais do CSV se aplicam.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<livros>
+  <livro>
+    <titulo>Clean Code</titulo>
+    <isbn>9780132350884</isbn>
+    <autores>Robert C. Martin</autores>
+    <editora>Prentice Hall</editora>
+    <dataPublicacao>2008-08-01</dataPublicacao>
+    <idioma>en</idioma>
+    <numeroPaginas>431</numeroPaginas>
+  </livro>
+</livros>
+```
+
+Múltiplos autores devem ser separados por vírgula dentro da tag `<autores>`. Tags opcionais podem ser omitidas.
+
+---
+
+## Exportação CSV
+
+Na tela de listagem, o botão **Exportar** gera um arquivo `.csv` com todos os livros atualmente cadastrados no acervo. O arquivo usa o mesmo formato aceito pela importação, podendo ser reimportado diretamente em outra instância da aplicação.
+
+O arquivo é gerado com encoding **UTF-8**.
+
+---
+
+## Estatísticas do acervo
+
+A aba **Estatísticas** exibe um painel com quatro quadrantes:
+
+| Quadrante | Conteúdo |
+|---|---|
+| Resumo | Total de livros e distribuição por idioma |
+| Distribuição por ano | Barras proporcionais ao volume por ano de publicação |
+| Top 5 Autores | Autores com mais livros no acervo |
+| Top 5 Editoras | Editoras com mais livros no acervo |
+
+Os dados são recarregados automaticamente ao selecionar a aba ou ao clicar em **Atualizar**.
 
 ---
 
@@ -228,12 +278,14 @@ Livros com ISBN já cadastrado são **atualizados** com os dados do arquivo. Err
 As migrations Flyway criam o seguinte esquema:
 
 ```
-editora          (id, nome)
-autor            (id, nome, data_nascimento, data_falecimento, bio)
-livro            (id, titulo, isbn, data_publicacao, numero_paginas, idioma, editora_id → editora)
+editora          (id, nome, created_at, updated_at, deleted_at)
+autor            (id, nome, data_nascimento, data_falecimento, bio, created_at, updated_at, deleted_at)
+livro            (id, titulo, isbn, data_publicacao, numero_paginas, idioma, editora_id → editora, created_at, updated_at, deleted_at)
 livro_autor      (livro_id → livro, autor_id → autor)          -- N:N livro ↔ autor
-livro_semelhante (livro_id → livro, semelhante_id → livro)     -- N:N livro ↔ livro
+livro_semelhante (livro_id → livro, semelhante_id → livro)     -- unidirecional: livro_id possui semelhante_id (não implica inverso)
 ```
+
+As colunas `created_at` e `updated_at` são preenchidas automaticamente pelo Hibernate via `@PrePersist` / `@PreUpdate`. A coluna `deleted_at` implementa **soft delete**: registros excluídos pela aplicação não são removidos do banco — apenas têm `deleted_at` preenchido e deixam de aparecer nas queries.
 
 Índices criados nas migrations: `LOWER(titulo)`, `LOWER(idioma)`, `editora_id` em `livro`; `autor_id` em `livro_autor`; `nome` em `editora` e `autor`.
 
