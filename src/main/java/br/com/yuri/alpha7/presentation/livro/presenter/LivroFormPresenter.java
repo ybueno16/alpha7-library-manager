@@ -1,6 +1,5 @@
 package br.com.yuri.alpha7.presentation.livro.presenter;
 
-import br.com.yuri.alpha7.application.editora.EditoraUseCase;
 import br.com.yuri.alpha7.application.isbn.IsbnLookupUseCase;
 import br.com.yuri.alpha7.application.livro.BookCrudUseCase;
 import br.com.yuri.alpha7.application.livro.BookSearchUseCase;
@@ -34,8 +33,8 @@ import java.util.stream.Collectors;
  *
  * <p>As validações realizadas antes de salvar são: título obrigatório, ISBN obrigatório,
  * ao menos um autor e formato de data (apenas ano {@code yyyy}, se informada). A editora é
- * resolvida pelo nome via {@link br.com.yuri.alpha7.domain.editora.repository.EditoraRepository}:
- * se já existir, é reaproveitada; caso contrário, uma nova editora é criada.
+ * resolvida atomicamente pelo {@link br.com.yuri.alpha7.application.livro.BookCrudUseCase},
+ * que garante que a criação da editora e do livro ocorram na mesma transação.
  */
 public class LivroFormPresenter {
 
@@ -43,7 +42,6 @@ public class LivroFormPresenter {
     private final BookCrudUseCase   crudUseCase;
     private final BookSearchUseCase searchUseCase;
     private final IsbnLookupUseCase isbnLookupUseCase;
-    private final EditoraUseCase    editoraUseCase;
     private final Runnable          onSuccess;
     private Long livroId;
 
@@ -51,13 +49,11 @@ public class LivroFormPresenter {
                               BookCrudUseCase crudUseCase,
                               BookSearchUseCase searchUseCase,
                               IsbnLookupUseCase isbnLookupUseCase,
-                              EditoraUseCase editoraUseCase,
                               Runnable onSuccess) {
         this.view              = view;
         this.crudUseCase       = crudUseCase;
         this.searchUseCase     = searchUseCase;
         this.isbnLookupUseCase = isbnLookupUseCase;
-        this.editoraUseCase    = editoraUseCase;
         this.onSuccess         = onSuccess;
         view.onIsbnLookup(this::lookupByIsbn);
         view.onSave(this::save);
@@ -147,7 +143,7 @@ public class LivroFormPresenter {
         if (!validate()) return;
         try {
             Livro livro = buildLivro();
-            crudUseCase.save(livro);
+            crudUseCase.saveWithEditora(livro, view.getEditora().trim());
             onSuccess.run();
             view.close();
         } catch (Exception e) {
@@ -157,6 +153,21 @@ public class LivroFormPresenter {
 
     private boolean validate() {
         view.clearValidationError();
+
+        String pagesStr = view.getNumeroPaginas();
+        if (!pagesStr.isEmpty()) {
+            try {
+                int pages = Integer.parseInt(pagesStr);
+                if (pages <= 0) {
+                    view.showValidationError("Número de páginas deve ser maior que zero.");
+                    return false;
+                }
+            } catch (NumberFormatException e) {
+                view.showValidationError("Número de páginas inválido. Informe apenas números inteiros.");
+                return false;
+            }
+        }
+
         if (view.getTitulo().isEmpty()) {
             view.showValidationError("Título é obrigatório.");
             return false;
@@ -165,14 +176,23 @@ public class LivroFormPresenter {
             view.showValidationError("ISBN é obrigatório.");
             return false;
         }
-        if (view.getAutores().isEmpty()) {
-            view.showValidationError("Informe ao menos um autor.");
+        if (view.getAutores().isEmpty() ||
+                parseAutores(view.getAutores()).isEmpty()) {
+            view.showValidationError("Informe ao menos um autor válido.");
             return false;
         }
         String dateStr = view.getDataPublicacao();
         if (!dateStr.isEmpty() && !dateStr.matches("\\d{4}")) {
             view.showValidationError("Publicação inválida. Use apenas o ano (ex: 2003).");
             return false;
+        }
+
+        if (!dateStr.isEmpty()) {
+            int year = Integer.parseInt(dateStr);
+            if (year < 1 || year > LocalDate.now().getYear()) {
+                view.showValidationError("Ano de publicação inválido.");
+                return false;
+            }
         }
         return true;
     }
@@ -188,11 +208,6 @@ public class LivroFormPresenter {
         livro.setIsbn(new ISBN(view.getIsbn()));
         livro.setAutores(parseAutores(view.getAutores()));
         livro.setLivrosSemelhantes(view.getLivrosSemelhantes());
-
-        String editoraStr = view.getEditora();
-        if (!editoraStr.isEmpty()) {
-            livro.setEditora(editoraUseCase.findOrCreate(editoraStr));
-        }
 
         String dateStr = view.getDataPublicacao();
         if (!dateStr.isEmpty()) {

@@ -27,6 +27,25 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Implementação Swing de {@link LivroListView}: painel principal do sistema com a tabela de livros.
+ *
+ * <p>Contém uma barra de busca com campo de texto e botão "Buscar", a tabela de livros com ordenação
+ * por coluna (via {@link TableRowSorter}), e botões de ação: Novo, Editar, Excluir, Importar e Exportar.
+ * Os botões Editar e Excluir ficam desabilitados enquanto nenhum livro está selecionado.
+ *
+ * <p>Atalhos de teclado registrados:
+ * <ul>
+ *   <li>{@code F5} — executa a busca</li>
+ *   <li>{@code Ctrl+N} — abre o formulário de novo livro</li>
+ *   <li>{@code Delete} (com foco na tabela) — exclui os livros selecionados</li>
+ *   <li>Duplo clique em uma linha — abre o formulário de edição</li>
+ * </ul>
+ *
+ * <p>Assim como {@link LivroFormDialog}, este componente é Passive View: nenhuma lógica de negócio
+ * ou acesso a dados reside aqui. Toda coordenação é feita pelo
+ * {@link br.com.yuri.alpha7.presentation.livro.presenter.LivroListPresenter}.
+ */
 public class LivroListPanel extends JPanel implements LivroListView {
 
     private final LivroTableModel tableModel   = new LivroTableModel();

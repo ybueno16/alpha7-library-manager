@@ -1,7 +1,7 @@
 package br.com.yuri.alpha7.presentation.livro.view;
 
-import br.com.yuri.alpha7.application.importacao.ImportPreviewRecord;
-import br.com.yuri.alpha7.application.importacao.ImportPreviewRecord.Status;
+import br.com.yuri.alpha7.application.importacao.model.ImportPreviewRecord;
+import br.com.yuri.alpha7.application.importacao.model.ImportPreviewRecord.Status;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -30,9 +30,9 @@ import java.util.List;
  */
 public class ImportPreviewDialog extends JDialog {
 
-    private static final Color COLOR_NOVO      = new Color(198, 239, 206);
-    private static final Color COLOR_JA_EXISTE = new Color(255, 235, 156);
-    private static final Color COLOR_ERRO      = new Color(255, 199, 206);
+    private static final Color COLOR_NOVO      = new Color(20,  90, 20);
+    private static final Color COLOR_JA_EXISTE = new Color(100, 80,  0);
+    private static final Color COLOR_ERRO      = new Color(110, 20, 20);
 
     private final PreviewTableModel tableModel;
     private boolean confirmed = false;

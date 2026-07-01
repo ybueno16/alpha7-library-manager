@@ -28,6 +28,19 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Implementação Swing de {@link LivroFormView}: janela modal de criação e edição de livros.
+ *
+ * <p>O diálogo contém campos de texto para todos os atributos do livro (título, ISBN, autores,
+ * editora, data de publicação, idioma e número de páginas), um botão "Buscar por ISBN" que
+ * delega a busca assíncrona ao presenter, e uma seção de livros semelhantes com lista e botões
+ * para adicionar e remover.
+ *
+ * <p>Este componente não possui lógica de negócio: toda validação e coordenação é responsabilidade
+ * do {@link br.com.yuri.alpha7.presentation.livro.presenter.LivroFormPresenter}. A comunicação
+ * ocorre exclusivamente através da interface {@link LivroFormView} — o presenter nunca referencia
+ * esta classe diretamente, o que permite testar a lógica do formulário com mocks de {@link LivroFormView}.
+ */
 public class LivroFormDialog extends JDialog implements LivroFormView {
 
     private final JTextField titleField   = new JTextField(30);
@@ -268,12 +281,10 @@ public class LivroFormDialog extends JDialog implements LivroFormView {
     @Override
     public void showValidationError(String message) {
         validationLabel.setText(message);
-        pack();
     }
 
     @Override
     public void clearValidationError() {
         validationLabel.setText(" ");
-        pack();
     }
 }
