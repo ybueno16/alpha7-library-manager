@@ -1,4 +1,4 @@
-package br.com.yuri.alpha7.application.importacao;
+package br.com.yuri.alpha7.application.importacao.model;
 
 /**
  * DTO que representa um registro de livro lido de um arquivo de importação,
@@ -14,8 +14,15 @@ public class ImportRecord {
     private final String idioma;
     private final String numeroPaginas;
 
-    public ImportRecord(String titulo, String isbn, String autores, String editora,
-                        String dataPublicacao, String idioma, String numeroPaginas) {
+    public ImportRecord(
+            String titulo,
+            String isbn,
+            String autores,
+            String editora,
+            String dataPublicacao,
+            String idioma,
+            String numeroPaginas
+    ) {
         this.titulo         = titulo;
         this.isbn           = isbn;
         this.autores        = autores;

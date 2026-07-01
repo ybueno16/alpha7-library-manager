@@ -1,4 +1,7 @@
-package br.com.yuri.alpha7.application.importacao;
+package br.com.yuri.alpha7.application.importacao.parser;
+
+import br.com.yuri.alpha7.application.importacao.model.ImportRecord;
+import br.com.yuri.alpha7.application.importacao.ImportUseCase;
 
 import java.io.InputStream;
 import java.util.List;

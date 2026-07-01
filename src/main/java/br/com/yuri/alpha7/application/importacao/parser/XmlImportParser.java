@@ -1,5 +1,6 @@
-package br.com.yuri.alpha7.application.importacao;
+package br.com.yuri.alpha7.application.importacao.parser;
 
+import br.com.yuri.alpha7.application.importacao.model.ImportRecord;
 import br.com.yuri.alpha7.domain.exception.ImportException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -42,7 +43,14 @@ public class XmlImportParser implements ImportParser {
     @Override
     public List<ImportRecord> parse(InputStream stream) {
         try {
-            DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl",
+                    true);
+            factory.setFeature("http://xml.org/sax/features/external-general-entities",
+                    false);
+            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+                    factory.setExpandEntityReferences(false);
+            DocumentBuilder builder = factory.newDocumentBuilder();
             Document doc = builder.parse(stream);
             doc.getDocumentElement().normalize();
 

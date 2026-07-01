@@ -1,6 +1,10 @@
 package br.com.yuri.alpha7.application.importacao;
 
 import br.com.yuri.alpha7.application.UnitOfWork;
+import br.com.yuri.alpha7.application.importacao.model.ImportPreviewRecord;
+import br.com.yuri.alpha7.application.importacao.model.ImportRecord;
+import br.com.yuri.alpha7.application.importacao.model.ImportResult;
+import br.com.yuri.alpha7.application.importacao.parser.ImportParser;
 import br.com.yuri.alpha7.domain.autor.model.Autor;
 import br.com.yuri.alpha7.domain.autor.repository.AutorRepository;
 import br.com.yuri.alpha7.domain.editora.model.Editora;
@@ -108,7 +112,7 @@ public class ImportUseCase {
                 continue;
             }
             try {
-                unitOfWork.execute(() -> saveRecord(preview.sourceRecord));
+                unitOfWork.execute(() -> saveRecord(preview.getSourceRecord()));
                 result.incrementNew();
             } catch (IsbnInvalidoException e) {
                 logger.warn("Erro na linha {}: ISBN inválido — {}", preview.getLineNumber(), e.getMessage());
@@ -142,7 +146,7 @@ public class ImportUseCase {
                 );
             }
 
-            if(record.getTitulo().isEmpty() || record.getTitulo() == null) {
+            if (record.getTitulo() == null || record.getTitulo().trim().isEmpty()) {
                 return new ImportPreviewRecord(
                         line, record.getTitulo(), record.getIsbn(),
                         ImportPreviewRecord.Status.ERRO,
@@ -205,19 +209,26 @@ public class ImportUseCase {
 
         Optional<Livro> existing = livroRepository.findByIsbnIncludingDeleted(isbn);
 
-        Editora editora = editoraRepository.findByNome(record.getEditora())
-                .orElseGet(() -> editoraRepository.save(new Editora(record.getEditora())));
-
-        List<Autor> authors = resolveAuthors(record.getAutores());
-
         Livro livro = existing.orElseGet(() -> {
             Livro novo = new Livro();
             novo.setIsbn(isbn);
             return novo;
         });
 
+        String editoraNome = record.getEditora() == null ? "" :
+                record.getEditora().trim();
+
+        if (!editoraNome.isEmpty()) {
+            Editora editora = editoraRepository.findByNome(editoraNome)
+                    .orElseGet(() -> editoraRepository.save(new Editora(editoraNome)));
+            livro.setEditora(editora);
+        }
+
+
+        List<Autor> authors = resolveAuthors(record.getAutores());
+
+
         livro.setTitulo(record.getTitulo());
-        livro.setEditora(editora);
         livro.setAutores(authors);
         assignFields(livro, record.getDataPublicacao(), record.getIdioma(), record.getNumeroPaginas());
         livroRepository.save(livro);

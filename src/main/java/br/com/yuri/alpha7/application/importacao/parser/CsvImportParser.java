@@ -1,5 +1,6 @@
-package br.com.yuri.alpha7.application.importacao;
+package br.com.yuri.alpha7.application.importacao.parser;
 
+import br.com.yuri.alpha7.application.importacao.model.ImportRecord;
 import br.com.yuri.alpha7.domain.exception.ImportException;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
@@ -7,6 +8,7 @@ import org.apache.commons.csv.CSVRecord;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,7 +31,7 @@ public class CsvImportParser implements ImportParser {
     @Override
     public List<ImportRecord> parse(InputStream stream) {
         try {
-            Reader reader = new InputStreamReader(stream);
+            Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8);
             Iterable<CSVRecord> records = CSVFormat.DEFAULT.builder()
                     .setHeader()
                     .setSkipHeaderRecord(true)

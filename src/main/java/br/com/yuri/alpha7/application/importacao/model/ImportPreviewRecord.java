@@ -1,4 +1,4 @@
-package br.com.yuri.alpha7.application.importacao;
+package br.com.yuri.alpha7.application.importacao.model;
 
 /**
  * Representa o resultado da validação de uma linha do arquivo de importação antes de gravar.
@@ -20,7 +20,7 @@ public class ImportPreviewRecord {
     private final Status status;
     private final String mensagem;
     private boolean selecionado;
-    final ImportRecord sourceRecord;
+    private final ImportRecord sourceRecord;
 
     public ImportPreviewRecord(int lineNumber,
                                String titulo,
@@ -65,4 +65,9 @@ public class ImportPreviewRecord {
     public void setSelecionado(boolean selecionado) {
         this.selecionado = selecionado;
     }
+
+    public ImportRecord getSourceRecord() {
+        return sourceRecord;
+    }
+
 }

@@ -1,4 +1,4 @@
-package br.com.yuri.alpha7.application.importacao;
+package br.com.yuri.alpha7.application.importacao.model;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,10 +41,6 @@ public class ImportResult {
 
     public int getTotalSkipped() {
         return totalSkipped;
-    }
-
-    public int getTotalSaved() {
-        return totalNew;
     }
 
     public int getTotalProcessed() {
