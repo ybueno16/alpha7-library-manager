@@ -77,9 +77,15 @@ tasks.jacocoTestReport {
                 "**/config/**",
                 "**/Main.class",
                 "**/presentation/MainWindow.class",
-                "**/presentation/livro/view/LivroFormDialog.class",
-                "**/presentation/livro/view/LivroListPanel.class",
-                "**/presentation/livro/presenter/LivroTableModel.class"
+                "**/presentation/livro/view/LivroFormDialog*.class",
+                "**/presentation/livro/view/LivroListPanel*.class",
+                "**/presentation/livro/view/ImportPreviewDialog*.class",
+                "**/presentation/livro/presenter/LivroTableModel.class",
+                "**/presentation/livro/presenter/LivroListPresenter.class",
+                "**/presentation/livro/presenter/LivroListPresenter\$*.class",
+                "**/presentation/stats/view/AcervoStatsPanel*.class",
+                "**/presentation/stats/presenter/AcervoStatsPresenter.class",
+                "**/presentation/stats/presenter/AcervoStatsPresenter\$*.class"
             )
         }
     }))
