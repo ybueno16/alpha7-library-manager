@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.persistence.EntityManager;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Implementação de {@link UnitOfWork} baseada em Hibernate que demarca transações e
@@ -42,6 +43,31 @@ public class HibernateUnitOfWork implements UnitOfWork {
             action.run();
             entityManager.getTransaction().commit();
             logger.debug("Transação confirmada");
+        } catch (LibraryException e) {
+            entityManager.getTransaction().rollback();
+            logger.warn("Transação revertida: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            entityManager.getTransaction().rollback();
+            logger.warn("Transação revertida: {}", e.getMessage());
+            throw new LibraryException("Não foi possível completar a operação", e);
+        } finally {
+            context.remove();
+            entityManager.close();
+        }
+    }
+
+    @Override
+    public <T> T execute(Supplier<T> action) {
+        EntityManager entityManager = HibernateUtil.openEntityManager();
+        context.set(entityManager);
+        try {
+            logger.debug("Iniciando transação");
+            entityManager.getTransaction().begin();
+            T result = action.get();
+            entityManager.getTransaction().commit();
+            logger.debug("Transação confirmada");
+            return result;
         } catch (LibraryException e) {
             entityManager.getTransaction().rollback();
             logger.warn("Transação revertida: {}", e.getMessage());

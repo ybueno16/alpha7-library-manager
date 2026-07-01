@@ -92,12 +92,22 @@ class ISBNTest {
 
     @Test
     @DisplayName(
-            "Given an ISBN-10 with a non-digit character," +
+            "Given an ISBN-10 with a non-digit character in the last position," +
             " when ISBN is created," +
             " then IsbnInvalidoException is thrown"
     )
-    void shouldThrowWhenIsbn10ContainsNonDigit() {
+    void shouldThrowWhenIsbn10ContainsNonDigitAtLastPosition() {
         assertThrows(IsbnInvalidoException.class, () -> new ISBN("030640615!"));
+    }
+
+    @Test
+    @DisplayName(
+            "Given an ISBN-10 with a non-digit character in an interior position," +
+            " when ISBN is created," +
+            " then IsbnInvalidoException is thrown"
+    )
+    void shouldThrowWhenIsbn10ContainsNonDigitInInteriorPosition() {
+        assertThrows(IsbnInvalidoException.class, () -> new ISBN("0A0640615X"));
     }
 
     @Test

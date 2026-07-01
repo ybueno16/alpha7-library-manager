@@ -34,10 +34,9 @@ class BookCrudUseCaseIntegrationTest extends AbstractRepositoryTest {
     void shouldFindBookAfterSave() {
         Livro saved = useCase.save(bookWithIsbn("Clean Code", ISBN_A));
 
-        Optional<Livro> found = useCase.findById(saved.getId());
+        Livro found = useCase.findById(saved.getId());
 
-        assertTrue(found.isPresent());
-        assertEquals("Clean Code", found.get().getTitulo());
+        assertEquals("Clean Code", found.getTitulo());
     }
 
     @Test
@@ -80,9 +79,60 @@ class BookCrudUseCaseIntegrationTest extends AbstractRepositoryTest {
 
         assertDoesNotThrow(() -> useCase.save(saved));
 
-        Optional<Livro> updated = useCase.findById(saved.getId());
-        assertTrue(updated.isPresent());
-        assertEquals("Updated Title", updated.get().getTitulo());
+        Livro updated = useCase.findById(saved.getId());
+        assertEquals("Updated Title", updated.getTitulo());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a book saved with a publisher name," +
+            " when saveWithEditora is called," +
+            " then the book is persisted with the editora linked"
+    )
+    void shouldSaveBookWithEditoraWhenNameIsProvided() {
+        Livro saved = useCase.saveWithEditora(bookWithIsbn("Effective Java", ISBN_A), "Addison-Wesley");
+
+        Livro found = useCase.findById(saved.getId());
+
+        assertNotNull(found.getEditora());
+        assertEquals("Addison-Wesley", found.getEditora().getNome());
+    }
+
+    @Test
+    @DisplayName(
+            "Given two books saved with the same publisher name," +
+            " when saveWithEditora is called for each," +
+            " then both reference the same editora record"
+    )
+    void shouldReuseExistingEditoraOnSecondSave() {
+        Livro first  = useCase.saveWithEditora(bookWithIsbn("Effective Java",  ISBN_A), "Addison-Wesley");
+        Livro second = useCase.saveWithEditora(bookWithIsbn("Design Patterns", ISBN_B), "Addison-Wesley");
+
+        assertEquals(first.getEditora().getId(), second.getEditora().getId());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a book with no publisher name," +
+            " when saveWithEditora is called with null," +
+            " then the book is saved without editora"
+    )
+    void shouldSaveBookWithoutEditoraWhenNameIsNull() {
+        Livro saved = useCase.saveWithEditora(bookWithIsbn("Anonymous", ISBN_A), null);
+
+        Livro found = useCase.findById(saved.getId());
+
+        assertNull(found.getEditora());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a non-existent book id," +
+            " when delete is called," +
+            " then BookNotFoundException is thrown"
+    )
+    void shouldThrowWhenDeletingNonExistentBook() {
+        assertThrows(BookNotFoundException.class, () -> useCase.delete(99999L));
     }
 
     private Livro bookWithIsbn(String titulo, ISBN isbn) {

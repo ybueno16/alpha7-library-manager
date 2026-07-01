@@ -2,6 +2,7 @@ package br.com.yuri.alpha7.infra.persistence.editora;
 
 import br.com.yuri.alpha7.domain.editora.model.Editora;
 import br.com.yuri.alpha7.domain.editora.repository.EditoraRepository;
+import br.com.yuri.alpha7.domain.exception.LibraryException;
 import br.com.yuri.alpha7.infra.persistence.BaseRepository;
 
 import java.util.List;
@@ -67,14 +68,14 @@ public class EditoraRepositoryImpl extends BaseRepository implements EditoraRepo
     @Override
     public void delete(Long id) {
         executeInTransaction(em -> {
-            EditoraEntity entity = em.find(EditoraEntity.class, id);
-            if (entity != null) {
-                em.createQuery(
-                                "UPDATE Editora e " +
-                                "SET e.deletedAt = CURRENT_TIMESTAMP " +
-                                "WHERE e.id = :id")
-                        .setParameter("id", id)
-                        .executeUpdate();
+            int updated = em.createQuery(
+                            "UPDATE Editora e " +
+                            "SET e.deletedAt = CURRENT_TIMESTAMP " +
+                            "WHERE e.id = :id AND e.deletedAt IS NULL")
+                    .setParameter("id", id)
+                    .executeUpdate();
+            if (updated == 0) {
+                throw new LibraryException("Editora não encontrada: id=" + id);
             }
             return null;
         });

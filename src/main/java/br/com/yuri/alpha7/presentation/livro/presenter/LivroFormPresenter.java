@@ -4,6 +4,7 @@ import br.com.yuri.alpha7.application.isbn.IsbnLookupUseCase;
 import br.com.yuri.alpha7.application.livro.BookCrudUseCase;
 import br.com.yuri.alpha7.application.livro.BookSearchUseCase;
 import br.com.yuri.alpha7.domain.autor.model.Autor;
+import br.com.yuri.alpha7.domain.exception.IsbnInvalidoException;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
 import br.com.yuri.alpha7.domain.livro.vo.ISBN;
 import br.com.yuri.alpha7.presentation.livro.view.LivroFormView;
@@ -14,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -115,20 +117,34 @@ public class LivroFormPresenter {
     }
 
     private void addSemelhante() {
-        List<Livro> todos = searchUseCase.findAll();
-        List<Livro> atuais = view.getLivrosSemelhantes();
-        List<Long> idsAtuais = atuais.stream()
-                .map(Livro::getId)
-                .collect(Collectors.toList());
-        List<Livro> disponiveis = todos.stream()
-                .filter(l -> l.getId() != null && !l.getId().equals(livroId))
-                .filter(l -> !idsAtuais.contains(l.getId()))
-                .collect(Collectors.toList());
-        view.pickSemelhante(disponiveis).ifPresent(escolhido -> {
-            List<Livro> novos = new ArrayList<>(atuais);
-            novos.add(escolhido);
-            view.setLivrosSemelhantes(novos);
-        });
+        new SwingWorker<List<Livro>, Void>() {
+            @Override
+            protected List<Livro> doInBackground() {
+                return searchUseCase.findAll();
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    List<Livro> todos = get();
+                    List<Livro> atuais = view.getLivrosSemelhantes();
+                    Set<Long> idsAtuais = atuais.stream()
+                            .map(Livro::getId)
+                            .collect(Collectors.toSet());
+                    List<Livro> disponiveis = todos.stream()
+                            .filter(l -> l.getId() != null && !l.getId().equals(livroId))
+                            .filter(l -> !idsAtuais.contains(l.getId()))
+                            .collect(Collectors.toList());
+                    view.pickSemelhante(disponiveis).ifPresent(escolhido -> {
+                        List<Livro> novos = new ArrayList<>(atuais);
+                        novos.add(escolhido);
+                        view.setLivrosSemelhantes(novos);
+                    });
+                } catch (Exception e) {
+                    view.showErrorMessage("Erro ao carregar livros: " + e.getMessage());
+                }
+            }
+        }.execute();
     }
 
     private void removeSemelhante() {
@@ -174,6 +190,12 @@ public class LivroFormPresenter {
         }
         if (view.getIsbn().isEmpty()) {
             view.showValidationError("ISBN é obrigatório.");
+            return false;
+        }
+        try {
+            new ISBN(view.getIsbn());
+        } catch (IsbnInvalidoException e) {
+            view.showValidationError("ISBN inválido: " + e.getMessage());
             return false;
         }
         if (view.getAutores().isEmpty() ||

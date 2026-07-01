@@ -17,6 +17,9 @@ public final class ISBN implements Serializable {
      * @throws IsbnInvalidoException se o formato ou dígito verificador for inválido
      */
     public ISBN(String value) {
+        if (value == null) {
+            throw new IsbnInvalidoException("ISBN não pode ser nulo");
+        }
         String normalized = normalize(value);
         validate(normalized);
         this.value = normalized;
@@ -44,7 +47,6 @@ public final class ISBN implements Serializable {
     }
 
     private static String normalize(String value) {
-        if (value == null) return "";
         return value.replaceAll("[-\\s]", "").toUpperCase();
     }
 
@@ -69,6 +71,9 @@ public final class ISBN implements Serializable {
             sum += (isbn.charAt(i) - '0') * (10 - i);
         }
         char last = isbn.charAt(9);
+        if (last != 'X' && !Character.isDigit(last)) {
+            throw new IsbnInvalidoException("ISBN-10 contém caractere inválido: " + isbn);
+        }
         sum += (last == 'X') ? 10 : (last - '0');
 
         if (sum % 11 != 0) {

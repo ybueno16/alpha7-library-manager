@@ -31,7 +31,7 @@ import java.util.List;
  * }</pre>
  *
  * <p>Campos opcionais podem ser omitidos ou deixados em branco.
- * Múltiplos autores devem ser separados por vírgula dentro da tag {@code <autores>}.
+ * Múltiplos autores devem ser separados por ponto-e-vírgula ({@code ;}) dentro da tag {@code <autores>}.
  */
 public class XmlImportParser implements ImportParser {
 

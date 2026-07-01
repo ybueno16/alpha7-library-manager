@@ -1,13 +1,16 @@
 package br.com.yuri.alpha7.infra.persistence.livro;
 
+import br.com.yuri.alpha7.domain.exception.BookNotFoundException;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
 import br.com.yuri.alpha7.domain.livro.repository.LivroRepository;
 import br.com.yuri.alpha7.domain.livro.vo.ISBN;
 import br.com.yuri.alpha7.infra.persistence.BaseRepository;
 
+import java.util.HashMap;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /**
@@ -34,7 +37,6 @@ public class LivroRepositoryImpl extends BaseRepository implements LivroReposito
             List<LivroEntity> semelhantes = livro.getLivrosSemelhantes().stream()
                     .filter(s -> s.getId() != null)
                     .map(s -> em.getReference(LivroEntity.class, s.getId()))
-                    .filter(Objects::nonNull)
                     .collect(Collectors.toList());
             entity.setLivrosSemelhantes(semelhantes);
             LivroEntity saved = em.merge(entity);
@@ -55,37 +57,33 @@ public class LivroRepositoryImpl extends BaseRepository implements LivroReposito
 
     @Override
     public Optional<Livro> findByIsbn(ISBN isbn) {
-        return executeQuery(em -> {
-            List<LivroEntity> result = em.createQuery(
-                            "SELECT l FROM Livro l " +
-                            "LEFT JOIN FETCH l.editora " +
-                            "LEFT JOIN FETCH l.autores " +
-                            "WHERE l.isbn = :isbn " +
-                            "AND l.deletedAt IS NULL", LivroEntity.class)
-                    .setParameter("isbn", isbn)
-                    .getResultList();
-            if (result.isEmpty()) {
-                return Optional.empty();
-            }
-            return Optional.of(LivroMapper.toDomain(result.get(0)));
-        });
+        return executeQuery(em ->
+                em.createQuery(
+                                "SELECT l FROM Livro l " +
+                                "LEFT JOIN FETCH l.editora " +
+                                "LEFT JOIN FETCH l.autores " +
+                                "WHERE l.isbn = :isbn " +
+                                "AND l.deletedAt IS NULL", LivroEntity.class)
+                        .setParameter("isbn", isbn)
+                        .getResultList()
+                        .stream()
+                        .findFirst()
+                        .map(LivroMapper::toDomain));
     }
 
     @Override
     public Optional<Livro> findByIsbnIncludingDeleted(ISBN isbn) {
-        return executeQuery(em -> {
-            List<LivroEntity> result = em.createQuery(
-                            "SELECT l FROM Livro l " +
-                            "LEFT JOIN FETCH l.editora " +
-                            "LEFT JOIN FETCH l.autores " +
-                            "WHERE l.isbn = :isbn", LivroEntity.class)
-                    .setParameter("isbn", isbn)
-                    .getResultList();
-            if (result.isEmpty()) {
-                return Optional.empty();
-            }
-            return Optional.of(LivroMapper.toDomain(result.get(0)));
-        });
+        return executeQuery(em ->
+                em.createQuery(
+                                "SELECT l FROM Livro l " +
+                                "LEFT JOIN FETCH l.editora " +
+                                "LEFT JOIN FETCH l.autores " +
+                                "WHERE l.isbn = :isbn", LivroEntity.class)
+                        .setParameter("isbn", isbn)
+                        .getResultList()
+                        .stream()
+                        .findFirst()
+                        .map(LivroMapper::toDomain));
     }
 
     @Override
@@ -128,17 +126,93 @@ public class LivroRepositoryImpl extends BaseRepository implements LivroReposito
     }
 
     @Override
+    public long countAll() {
+        return executeQuery(em ->
+                (Long) em.createQuery(
+                        "SELECT COUNT(l) FROM Livro l WHERE l.deletedAt IS NULL")
+                        .getSingleResult());
+    }
+
+    @Override
+    public Map<String, Long> countByIdioma() {
+        return executeQuery(em -> {
+            List<Object[]> rows = em.createQuery(
+                    "SELECT l.idioma, COUNT(l) FROM Livro l " +
+                    "WHERE l.deletedAt IS NULL " +
+                    "GROUP BY l.idioma", Object[].class)
+                    .getResultList();
+            Map<String, Long> result = new HashMap<>();
+            for (Object[] row : rows) {
+                result.put((String) row[0], (Long) row[1]);
+            }
+            return result;
+        });
+    }
+
+    @Override
+    public Map<String, Long> countByAutor() {
+        return executeQuery(em -> {
+            List<Object[]> rows = em.createQuery(
+                    "SELECT a.nome, COUNT(l) FROM Livro l " +
+                    "JOIN l.autores a " +
+                    "WHERE l.deletedAt IS NULL " +
+                    "GROUP BY a.nome", Object[].class)
+                    .getResultList();
+            Map<String, Long> result = new HashMap<>();
+            for (Object[] row : rows) {
+                result.put((String) row[0], (Long) row[1]);
+            }
+            return result;
+        });
+    }
+
+    @Override
+    public Map<String, Long> countByEditora() {
+        return executeQuery(em -> {
+            List<Object[]> rows = em.createQuery(
+                    "SELECT e.nome, COUNT(l) FROM Livro l " +
+                    "LEFT JOIN l.editora e " +
+                    "WHERE l.deletedAt IS NULL " +
+                    "GROUP BY e.nome", Object[].class)
+                    .getResultList();
+            Map<String, Long> result = new HashMap<>();
+            for (Object[] row : rows) {
+                result.put((String) row[0], (Long) row[1]);
+            }
+            return result;
+        });
+    }
+
+    @Override
+    public Map<Integer, Long> countByAno() {
+        return executeQuery(em -> {
+            List<Object[]> rows = em.createQuery(
+                    "SELECT YEAR(l.dataPublicacao), COUNT(l) FROM Livro l " +
+                    "WHERE l.deletedAt IS NULL AND l.dataPublicacao IS NOT NULL " +
+                    "GROUP BY YEAR(l.dataPublicacao) " +
+                    "ORDER BY YEAR(l.dataPublicacao)", Object[].class)
+                    .getResultList();
+            Map<Integer, Long> result = new TreeMap<>();
+            for (Object[] row : rows) {
+                result.put(((Number) row[0]).intValue(), (Long) row[1]);
+            }
+            return result;
+        });
+    }
+
+    @Override
     public void delete(Long id) {
         executeInTransaction(em -> {
-            LivroEntity entity = em.find(LivroEntity.class, id);
-            if (entity != null) {
-                em.createQuery(
-                                "UPDATE Livro l " +
-                                "SET l.deletedAt = CURRENT_TIMESTAMP " +
-                                "WHERE l.id = :id")
-                        .setParameter("id", id)
-                        .executeUpdate();
+            int updated = em.createQuery(
+                            "UPDATE Livro l " +
+                            "SET l.deletedAt = CURRENT_TIMESTAMP " +
+                            "WHERE l.id = :id AND l.deletedAt IS NULL")
+                    .setParameter("id", id)
+                    .executeUpdate();
+            if (updated == 0) {
+                throw new BookNotFoundException("Livro não encontrado");
             }
+            em.getEntityManagerFactory().getCache().evict(LivroEntity.class, id);
             return null;
         });
     }

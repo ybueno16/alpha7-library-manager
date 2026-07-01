@@ -9,6 +9,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import br.com.yuri.alpha7.domain.exception.LibraryException;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class AutorRepositoryImplTest extends AbstractRepositoryTest {
@@ -106,10 +108,10 @@ class AutorRepositoryImplTest extends AbstractRepositoryTest {
     @DisplayName(
             "Given no author with the given id," +
             " when delete is called," +
-            " then no exception is thrown"
+            " then LibraryException is thrown"
     )
-    void shouldNoopWhenDeleteCalledWithNonExistingId() {
-        assertDoesNotThrow(() -> repository.delete(999L));
+    void shouldThrowWhenDeleteCalledWithNonExistingId() {
+        assertThrows(LibraryException.class, () -> repository.delete(999L));
     }
 
     @Test

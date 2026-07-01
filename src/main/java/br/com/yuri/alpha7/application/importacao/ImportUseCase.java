@@ -82,7 +82,7 @@ public class ImportUseCase {
         logger.info("Preview iniciado: '{}'", filename);
         List<ImportRecord> records = parser.parse(stream);
         List<ImportPreviewRecord> previews = new ArrayList<>();
-        int lineNumber = 2;
+        int lineNumber = "csv".equals(ext) ? 2 : 1;
 
         for (ImportRecord record : records) {
             int line = lineNumber++;
@@ -133,6 +133,16 @@ public class ImportUseCase {
 
     private ImportPreviewRecord validateRecord(int line, ImportRecord record) {
         try {
+            if (record.getTitulo() == null || record.getTitulo().trim().isEmpty()) {
+                return new ImportPreviewRecord(
+                        line, record.getTitulo(), record.getIsbn(),
+                        ImportPreviewRecord.Status.ERRO,
+                        "Título não pode ser vazio",
+                        false,
+                        record
+                );
+            }
+
             ISBN isbn = new ISBN(record.getIsbn());
             validateOptionalFields(record.getDataPublicacao(), record.getNumeroPaginas());
 
@@ -141,16 +151,6 @@ public class ImportUseCase {
                         line, record.getTitulo(), record.getIsbn(),
                         ImportPreviewRecord.Status.JA_EXISTE,
                         "Já existe no acervo",
-                        false,
-                        record
-                );
-            }
-
-            if (record.getTitulo() == null || record.getTitulo().trim().isEmpty()) {
-                return new ImportPreviewRecord(
-                        line, record.getTitulo(), record.getIsbn(),
-                        ImportPreviewRecord.Status.ERRO,
-                        "Título não pode ser vazio",
                         false,
                         record
                 );
@@ -184,8 +184,8 @@ public class ImportUseCase {
     }
 
     private void validateOptionalFields(String dataPublicacao, String numeroPaginas) {
-        if (!dataPublicacao.isEmpty()) validateDate(dataPublicacao);
-        if (!numeroPaginas.isEmpty()) validatePages(numeroPaginas);
+        if (dataPublicacao != null && !dataPublicacao.isEmpty()) validateDate(dataPublicacao);
+        if (numeroPaginas != null && !numeroPaginas.isEmpty()) validatePages(numeroPaginas);
     }
 
     private void validateDate(String value) {
@@ -236,7 +236,7 @@ public class ImportUseCase {
 
     private List<Autor> resolveAuthors(String authorNames) {
         List<Autor> authors = new ArrayList<>();
-        for (String name : authorNames.split(",")) {
+        for (String name : authorNames.split(";")) {
             String trimmed = name.trim();
             if (trimmed.isEmpty()) continue;
             Autor autor = autorRepository.findByNome(trimmed)

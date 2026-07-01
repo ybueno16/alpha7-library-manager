@@ -2,6 +2,7 @@ package br.com.yuri.alpha7.infra.persistence.livro;
 
 import br.com.yuri.alpha7.domain.autor.model.Autor;
 import br.com.yuri.alpha7.domain.editora.model.Editora;
+import br.com.yuri.alpha7.domain.exception.BookNotFoundException;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
 import br.com.yuri.alpha7.domain.livro.vo.ISBN;
 import br.com.yuri.alpha7.infra.persistence.AbstractRepositoryTest;
@@ -207,10 +208,10 @@ class LivroRepositoryImplTest extends AbstractRepositoryTest {
     @DisplayName(
             "Given no book with the given id," +
             " when delete is called," +
-            " then no exception is thrown"
+            " then BookNotFoundException is thrown"
     )
-    void shouldNoopWhenDeleteCalledWithNonExistingId() {
-        assertDoesNotThrow(() -> livroRepository.delete(999L));
+    void shouldThrowWhenDeleteCalledWithNonExistingId() {
+        assertThrows(BookNotFoundException.class, () -> livroRepository.delete(999L));
     }
 
     @Test

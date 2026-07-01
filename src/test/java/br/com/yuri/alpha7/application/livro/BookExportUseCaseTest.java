@@ -101,9 +101,9 @@ class BookExportUseCaseTest {
     @DisplayName(
             "Given a book with multiple authors," +
             " when exportToCsv is called," +
-            " then author names are joined with a comma and space"
+            " then author names are joined with a semicolon and space"
     )
-    void shouldJoinMultipleAuthorNamesWithComma() throws IOException {
+    void shouldJoinMultipleAuthorNamesWithSemicolon() throws IOException {
         Livro livro = new Livro();
         livro.setTitulo("Co-authored Book");
         livro.setIsbn(new ISBN("9780132350884"));
@@ -115,7 +115,7 @@ class BookExportUseCaseTest {
 
         useCase.exportToCsv(writer);
 
-        assertTrue(writer.toString().contains("Author A, Author B"));
+        assertTrue(writer.toString().contains("Author A; Author B"));
     }
 
     @Test

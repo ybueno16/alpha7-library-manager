@@ -222,7 +222,7 @@ class ImportUseCaseTest {
 
     @Test
     @DisplayName(
-            "Given a CSV line with an author field containing a trailing comma," +
+            "Given a CSV line with an author field containing a trailing semicolon," +
             " when importFile is called," +
             " then the empty entry is skipped and only valid authors are assigned"
     )
@@ -235,7 +235,7 @@ class ImportUseCaseTest {
 
         ImportResult result = importFile(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
-                "Book,9780132350884,\"Author A,\",Pub,2023-01-01,EN,100\n"
+                "Book,9780132350884,\"Author A;\",Pub,2023-01-01,EN,100\n"
         ), "test.csv");
 
         assertEquals(1, result.getTotalNew());
@@ -393,12 +393,39 @@ class ImportUseCaseTest {
         assertEquals(1, result.getErrors().size());
     }
 
+    @Test
+    @DisplayName(
+            "Given an empty CSV file (no content at all)," +
+            " when preview is called," +
+            " then an empty list is returned without error"
+    )
+    void shouldReturnEmptyListWhenCsvFileIsEmpty() {
+        List<ImportPreviewRecord> previews = useCase.preview(csvStream(""), "empty.csv");
+        assertTrue(previews.isEmpty());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a valid CSV line," +
+            " when preview is called," +
+            " then the returned record exposes titulo and isbn via getters"
+    )
+    void shouldExposeCorrectTituloAndIsbnOnPreviewRecord() {
+        List<ImportPreviewRecord> previews = useCase.preview(csvStream(
+                "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
+                "Clean Code,9780132350884,Robert Martin,,,,"), "data.csv");
+
+        assertEquals(1, previews.size());
+        assertEquals("Clean Code",    previews.get(0).getTitulo());
+        assertEquals("9780132350884", previews.get(0).getIsbn());
+    }
+
     private ImportResult importFile(InputStream stream, String filename) {
         List<ImportPreviewRecord> previews = useCase.preview(stream, filename);
         return useCase.importSelected(previews);
     }
 
     private InputStream csvStream(String content) {
-        return new ByteArrayInputStream(content.getBytes());
+        return new ByteArrayInputStream(content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 }

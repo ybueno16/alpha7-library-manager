@@ -42,22 +42,20 @@ public class BookCrudUseCase {
      * @throws IsbnInvalidoException se o ISBN já estiver cadastrado para outro livro
      */
     public Livro saveWithEditora(Livro livro, String editoraNome) {
-        Livro[] result = new Livro[1];
-        unitOfWork.execute(() -> {
+        return unitOfWork.execute(() -> {
             if (editoraNome != null && !editoraNome.isEmpty()) {
                 Editora editora = editoraRepository.findByNome(editoraNome)
                         .orElseGet(() -> editoraRepository.save(new Editora(editoraNome)));
                 livro.setEditora(editora);
             }
-            result[0] = save(livro);
+            return save(livro);
         });
-        return result[0];
     }
 
-    public Livro save(Livro livro) throws IsbnInvalidoException {
+    Livro save(Livro livro) throws IsbnInvalidoException {
         Optional<Livro> existing = livroRepository.findByIsbn(livro.getIsbn());
-        if (existing.isPresent() && isbnBelongsToAnotherBook(livro.getId(), existing.get().getId())) {
-            throw new IsbnInvalidoException("Book with this ISBN is already registered: " + livro.getIsbn());
+        if (existing.isPresent() && isIsbnFromDifferentBook(livro.getId(), existing.get().getId())) {
+            throw new IsbnInvalidoException("ISBN já cadastrado no acervo: " + livro.getIsbn());
         }
         return livroRepository.save(livro);
     }
@@ -66,12 +64,12 @@ public class BookCrudUseCase {
      * Busca um livro pelo seu identificador.
      *
      * @param id identificador do livro
-     * @return {@link Optional} contendo o livro, nunca vazio
+     * @return livro encontrado
      * @throws BookNotFoundException se o livro não for encontrado
      */
-    public Optional<Livro> findById(Long id) throws BookNotFoundException {
-        return Optional.of(livroRepository.findById(id)
-                .orElseThrow(() -> new BookNotFoundException("Book not found")));
+    public Livro findById(Long id) throws BookNotFoundException {
+        return livroRepository.findById(id)
+                .orElseThrow(() -> new BookNotFoundException("Livro não encontrado: id=" + id));
     }
 
     /**
@@ -81,13 +79,10 @@ public class BookCrudUseCase {
      * @throws BookNotFoundException se o livro não for encontrado
      */
     public void delete(Long id) throws BookNotFoundException {
-        if (!livroRepository.findById(id).isPresent()) {
-            throw new BookNotFoundException("Book not found");
-        }
         livroRepository.delete(id);
     }
 
-    private boolean isbnBelongsToAnotherBook(Long newId, Long existingId) {
+    private boolean isIsbnFromDifferentBook(Long newId, Long existingId) {
         return newId == null || !newId.equals(existingId);
     }
 }

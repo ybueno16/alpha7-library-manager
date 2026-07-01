@@ -19,6 +19,7 @@ import java.awt.Frame;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import br.com.yuri.alpha7.domain.exception.BookNotFoundException;
 import java.util.List;
 import java.util.Optional;
 
@@ -107,17 +108,17 @@ public class LivroListPresenter {
                 : "Excluir " + selected.size() + " livro(s) selecionado(s)?";
         if (!view.confirm(message)) return;
 
-        int errors = 0;
+        List<String> failed = new java.util.ArrayList<>();
         for (Livro livro : selected) {
             try {
                 crudUseCase.delete(livro.getId());
             } catch (Exception e) {
-                errors++;
+                failed.add("\"" + livro.getTitulo() + "\"");
             }
         }
         search();
-        if (errors > 0) {
-            view.showErrorMessage(errors + " livro(s) não puderam ser excluídos.");
+        if (!failed.isEmpty()) {
+            view.showErrorMessage("Não foi possível excluir: " + String.join(", ", failed));
         }
     }
 
@@ -127,36 +128,50 @@ public class LivroListPresenter {
         if (chooser.showOpenDialog(parent) != JFileChooser.APPROVE_OPTION) return;
 
         File file = chooser.getSelectedFile();
-        try (FileInputStream is = new FileInputStream(file)) {
-            List<ImportPreviewRecord> previews = importUseCase.preview(is, file.getName());
-            ImportPreviewDialog dialog = new ImportPreviewDialog(parent, previews);
-            dialog.setVisible(true);
 
-            if (!dialog.isConfirmed()) return;
+        new SwingWorker<List<ImportPreviewRecord>, Void>() {
+            @Override
+            protected List<ImportPreviewRecord> doInBackground() throws Exception {
+                try (FileInputStream is = new FileInputStream(file)) {
+                    return importUseCase.preview(is, file.getName());
+                }
+            }
 
-            new SwingWorker<ImportResult, Void>() {
-                @Override
-                protected ImportResult doInBackground() throws Exception {
-                    return importUseCase.importSelected(previews);
+            @Override
+            protected void done() {
+                List<ImportPreviewRecord> previews;
+                try {
+                    previews = get();
+                } catch (Exception e) {
+                    Throwable cause = e.getCause() != null ? e.getCause() : e;
+                    view.showErrorMessage("Erro ao ler arquivo: " + cause.getMessage());
+                    return;
                 }
 
-                @Override
-                protected void done(){
-                    try{
-                        ImportResult result = importUseCase.importSelected(previews);
-                        loadLivros();
-                        showImportResult(result);
-                    } catch (Exception e) {
-                        view.showErrorMessage("Erro ao importar: " + e.getMessage());
+                ImportPreviewDialog dialog = new ImportPreviewDialog(parent, previews);
+                dialog.setVisible(true);
+
+                if (!dialog.isConfirmed()) return;
+
+                new SwingWorker<ImportResult, Void>() {
+                    @Override
+                    protected ImportResult doInBackground() throws Exception {
+                        return importUseCase.importSelected(previews);
                     }
-                }
 
-            }.execute();
-
-
-        } catch (Exception e) {
-            view.showErrorMessage("Erro ao importar: " + e.getMessage());
-        }
+                    @Override
+                    protected void done() {
+                        try {
+                            ImportResult result = get();
+                            loadLivros();
+                            showImportResult(result);
+                        } catch (Exception e) {
+                            view.showErrorMessage("Erro ao importar: " + e.getMessage());
+                        }
+                    }
+                }.execute();
+            }
+        }.execute();
     }
 
     private void showImportResult(ImportResult result) {
@@ -169,7 +184,9 @@ public class LivroListPresenter {
             sb.append(result.getTotalSkipped()).append(" livro(s) já existiam no acervo e não foram importados.");
         }
         if (sb.length() == 0) {
-            sb.append("Nenhum livro foi importado.");
+            sb.append(result.hasErrors()
+                    ? "Nenhum livro foi importado. Verifique os erros abaixo."
+                    : "Nenhum livro foi importado.");
         }
         if (!result.hasErrors()) {
             JOptionPane.showMessageDialog(parent, sb.toString(), "Importação concluída", JOptionPane.INFORMATION_MESSAGE);
@@ -212,6 +229,7 @@ public class LivroListPresenter {
                 Files.newOutputStream(file.toPath()),
                 StandardCharsets.UTF_8)
         ) {
+            writer.write('﻿');
             int total = exportUseCase.exportToCsv(writer);
             JOptionPane.showMessageDialog(parent,
                     total + " livro(s) exportado(s) para " + file.getName(),
@@ -233,15 +251,15 @@ public class LivroListPresenter {
         if (!selected.isPresent()) {
             return;
         }
-        Optional<Livro> livroCompleto = crudUseCase.findById(selected.get().getId());
-        if (!livroCompleto.isPresent()) {
-            view.showErrorMessage("Livro não encontrado. A lista será recarregada");
+        try {
+            Livro livroCompleto = crudUseCase.findById(selected.get().getId());
+            LivroFormDialog dialog = new LivroFormDialog(parent);
+            LivroFormPresenter presenter = new LivroFormPresenter(dialog, crudUseCase, searchUseCase, isbnLookupUseCase, this::loadLivros);
+            presenter.initEdit(livroCompleto);
+            dialog.setVisible(true);
+        } catch (BookNotFoundException e) {
+            view.showErrorMessage("Livro não encontrado. A lista será recarregada.");
             loadLivros();
-            return;
         }
-        LivroFormDialog dialog = new LivroFormDialog(parent);
-        LivroFormPresenter presenter = new LivroFormPresenter(dialog, crudUseCase, searchUseCase, isbnLookupUseCase, this::loadLivros);
-        presenter.initEdit(livroCompleto.get());
-        dialog.setVisible(true);
     }
 }

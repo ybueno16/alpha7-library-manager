@@ -2,6 +2,7 @@ package br.com.yuri.alpha7.infra.persistence.autor;
 
 import br.com.yuri.alpha7.domain.autor.model.Autor;
 import br.com.yuri.alpha7.domain.autor.repository.AutorRepository;
+import br.com.yuri.alpha7.domain.exception.LibraryException;
 import br.com.yuri.alpha7.infra.persistence.BaseRepository;
 
 import java.util.List;
@@ -70,14 +71,14 @@ public class AutorRepositoryImpl extends BaseRepository implements AutorReposito
     @Override
     public void delete(Long id) {
         executeInTransaction(em -> {
-            AutorEntity entity = em.find(AutorEntity.class, id);
-            if (entity != null) {
-                em.createQuery(
-                                "UPDATE Autor a " +
-                                "SET a.deletedAt = CURRENT_TIMESTAMP " +
-                                "WHERE a.id = :id")
-                        .setParameter("id", id)
-                        .executeUpdate();
+            int updated = em.createQuery(
+                            "UPDATE Autor a " +
+                            "SET a.deletedAt = CURRENT_TIMESTAMP " +
+                            "WHERE a.id = :id AND a.deletedAt IS NULL")
+                    .setParameter("id", id)
+                    .executeUpdate();
+            if (updated == 0) {
+                throw new LibraryException("Autor não encontrado: id=" + id);
             }
             return null;
         });

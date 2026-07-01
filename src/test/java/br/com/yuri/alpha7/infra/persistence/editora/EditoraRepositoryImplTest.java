@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Optional;
 
+import br.com.yuri.alpha7.domain.exception.LibraryException;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class EditoraRepositoryImplTest extends AbstractRepositoryTest {
@@ -103,9 +105,9 @@ class EditoraRepositoryImplTest extends AbstractRepositoryTest {
     @DisplayName(
             "Given a non-existing id," +
             " when delete is called," +
-            " then no exception is thrown"
+            " then LibraryException is thrown"
     )
-    void shouldNotThrowWhenDeletingNonExistentPublisher() {
-        assertDoesNotThrow(() -> repository.delete(999L));
+    void shouldThrowWhenDeletingNonExistentPublisher() {
+        assertThrows(LibraryException.class, () -> repository.delete(999L));
     }
 }

@@ -1,9 +1,8 @@
 package br.com.yuri.alpha7.application.stats;
 
-import br.com.yuri.alpha7.domain.autor.model.Autor;
-import br.com.yuri.alpha7.domain.editora.model.Editora;
-import br.com.yuri.alpha7.domain.livro.model.Livro;
+import br.com.yuri.alpha7.application.UnitOfWork;
 import br.com.yuri.alpha7.domain.livro.repository.LivroRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,13 +10,15 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -26,8 +27,17 @@ class AcervoStatsUseCaseTest {
     @Mock
     LivroRepository repository;
 
+    @Mock
+    UnitOfWork unitOfWork;
+
     @InjectMocks
     AcervoStatsUseCase useCase;
+
+    @BeforeEach
+    void setupUnitOfWork() {
+        doAnswer(inv -> ((Supplier<?>) inv.getArgument(0)).get())
+                .when(unitOfWork).execute(any(Supplier.class));
+    }
 
     @Test
     @DisplayName(
@@ -36,11 +46,15 @@ class AcervoStatsUseCaseTest {
             " then all stats are zero or empty"
     )
     void shouldReturnZeroStatsWhenRepositoryIsEmpty() {
-        when(repository.findAll()).thenReturn(Collections.emptyList());
+        when(repository.countAll()).thenReturn(0L);
+        when(repository.countByIdioma()).thenReturn(Collections.emptyMap());
+        when(repository.countByAutor()).thenReturn(Collections.emptyMap());
+        when(repository.countByEditora()).thenReturn(Collections.emptyMap());
+        when(repository.countByAno()).thenReturn(Collections.emptyMap());
 
         AcervoStats stats = useCase.getAcervo();
 
-        assertEquals(0, stats.getTotalLivros());
+        assertEquals(0L, stats.getTotalLivros());
         assertTrue(stats.getLivrosPorIdioma().isEmpty());
         assertTrue(stats.getTopAutores().isEmpty());
         assertTrue(stats.getTopEditoras().isEmpty());
@@ -54,15 +68,19 @@ class AcervoStatsUseCaseTest {
             " then livrosPorIdioma groups and counts them correctly"
     )
     void shouldGroupBooksByLanguage() {
-        when(repository.findAll()).thenReturn(Arrays.asList(
-                livroComIdioma("en"),
-                livroComIdioma("en"),
-                livroComIdioma("pt")
-        ));
+        Map<String, Long> idiomaMap = new HashMap<>();
+        idiomaMap.put("en", 2L);
+        idiomaMap.put("pt", 1L);
+
+        when(repository.countAll()).thenReturn(3L);
+        when(repository.countByIdioma()).thenReturn(idiomaMap);
+        when(repository.countByAutor()).thenReturn(Collections.emptyMap());
+        when(repository.countByEditora()).thenReturn(Collections.emptyMap());
+        when(repository.countByAno()).thenReturn(Collections.emptyMap());
 
         AcervoStats stats = useCase.getAcervo();
 
-        assertEquals(3,  stats.getTotalLivros());
+        assertEquals(3L,  stats.getTotalLivros());
         assertEquals(2L, stats.getLivrosPorIdioma().get("en"));
         assertEquals(1L, stats.getLivrosPorIdioma().get("pt"));
     }
@@ -74,10 +92,15 @@ class AcervoStatsUseCaseTest {
             " then both are counted under 'Não informado'"
     )
     void shouldUseNaoInformadoForNullOrBlankLanguage() {
-        when(repository.findAll()).thenReturn(Arrays.asList(
-                livroComIdioma(null),
-                livroComIdioma("  ")
-        ));
+        Map<String, Long> idiomaMap = new HashMap<>();
+        idiomaMap.put(null, 1L);
+        idiomaMap.put("  ", 1L);
+
+        when(repository.countAll()).thenReturn(2L);
+        when(repository.countByIdioma()).thenReturn(idiomaMap);
+        when(repository.countByAutor()).thenReturn(Collections.emptyMap());
+        when(repository.countByEditora()).thenReturn(Collections.emptyMap());
+        when(repository.countByAno()).thenReturn(Collections.emptyMap());
 
         AcervoStats stats = useCase.getAcervo();
 
@@ -91,13 +114,15 @@ class AcervoStatsUseCaseTest {
             " then top authors are ordered by count descending"
     )
     void shouldRankAutoresByBookCountDescending() {
-        Autor martin = new Autor("Robert C. Martin");
-        Autor hunt   = new Autor("Andrew Hunt");
+        Map<String, Long> autorMap = new HashMap<>();
+        autorMap.put("Robert C. Martin", 2L);
+        autorMap.put("Andrew Hunt", 1L);
 
-        when(repository.findAll()).thenReturn(Arrays.asList(
-                livroComAutores(martin, hunt),
-                livroComAutores(martin)
-        ));
+        when(repository.countAll()).thenReturn(2L);
+        when(repository.countByIdioma()).thenReturn(Collections.emptyMap());
+        when(repository.countByAutor()).thenReturn(autorMap);
+        when(repository.countByEditora()).thenReturn(Collections.emptyMap());
+        when(repository.countByAno()).thenReturn(Collections.emptyMap());
 
         AcervoStats stats = useCase.getAcervo();
 
@@ -114,11 +139,16 @@ class AcervoStatsUseCaseTest {
             " then only the top five authors are returned"
     )
     void shouldLimitTopAutoresToFive() {
-        List<Livro> livros = new ArrayList<>();
+        Map<String, Long> autorMap = new HashMap<>();
         for (int i = 1; i <= 7; i++) {
-            livros.add(livroComAutores(new Autor("Autor " + i)));
+            autorMap.put("Autor " + i, (long) i);
         }
-        when(repository.findAll()).thenReturn(livros);
+
+        when(repository.countAll()).thenReturn(7L);
+        when(repository.countByIdioma()).thenReturn(Collections.emptyMap());
+        when(repository.countByAutor()).thenReturn(autorMap);
+        when(repository.countByEditora()).thenReturn(Collections.emptyMap());
+        when(repository.countByAno()).thenReturn(Collections.emptyMap());
 
         AcervoStats stats = useCase.getAcervo();
 
@@ -132,20 +162,22 @@ class AcervoStatsUseCaseTest {
             " then null publisher is counted under 'Não informado'"
     )
     void shouldUseNaoInformadoForNullEditora() {
-        Livro comEditora    = livroComIdioma("en");
-        comEditora.setEditora(new Editora("Pearson"));
+        Map<String, Long> editoraMap = new HashMap<>();
+        editoraMap.put("Pearson", 1L);
+        editoraMap.put(null, 1L);
 
-        Livro semEditora = livroComIdioma("en");
-        semEditora.setEditora(null);
-
-        when(repository.findAll()).thenReturn(Arrays.asList(comEditora, semEditora));
+        when(repository.countAll()).thenReturn(2L);
+        when(repository.countByIdioma()).thenReturn(Collections.emptyMap());
+        when(repository.countByAutor()).thenReturn(Collections.emptyMap());
+        when(repository.countByEditora()).thenReturn(editoraMap);
+        when(repository.countByAno()).thenReturn(Collections.emptyMap());
 
         AcervoStats stats = useCase.getAcervo();
 
-        long pearsonCount       = stats.getTopEditoras().stream()
-                .filter(e -> "Pearson".equals(e.getKey())).mapToLong(e -> e.getValue()).sum();
-        long naoInformadoCount  = stats.getTopEditoras().stream()
-                .filter(e -> "Não informado".equals(e.getKey())).mapToLong(e -> e.getValue()).sum();
+        long pearsonCount      = stats.getTopEditoras().stream()
+                .filter(e -> "Pearson".equals(e.getKey())).mapToLong(Map.Entry::getValue).sum();
+        long naoInformadoCount = stats.getTopEditoras().stream()
+                .filter(e -> "Não informado".equals(e.getKey())).mapToLong(Map.Entry::getValue).sum();
 
         assertEquals(1L, pearsonCount);
         assertEquals(1L, naoInformadoCount);
@@ -158,13 +190,14 @@ class AcervoStatsUseCaseTest {
             " then only books with date appear in livrosPorAno"
     )
     void shouldIncludeOnlyBooksWithDateInLivrosPorAno() {
-        Livro comData = livroComIdioma("en");
-        comData.setDataPublicacao(LocalDate.of(2020, 6, 1));
+        Map<Integer, Long> anoMap = new TreeMap<>();
+        anoMap.put(2020, 1L);
 
-        Livro semData = livroComIdioma("pt");
-        semData.setDataPublicacao(null);
-
-        when(repository.findAll()).thenReturn(Arrays.asList(comData, semData));
+        when(repository.countAll()).thenReturn(2L);
+        when(repository.countByIdioma()).thenReturn(Collections.emptyMap());
+        when(repository.countByAutor()).thenReturn(Collections.emptyMap());
+        when(repository.countByEditora()).thenReturn(Collections.emptyMap());
+        when(repository.countByAno()).thenReturn(anoMap);
 
         AcervoStats stats = useCase.getAcervo();
 
@@ -179,30 +212,18 @@ class AcervoStatsUseCaseTest {
             " then they are grouped under the same year entry"
     )
     void shouldGroupBooksPublishedInTheSameYear() {
-        Livro livro1 = livroComIdioma("en");
-        livro1.setDataPublicacao(LocalDate.of(2008, 1, 1));
+        Map<Integer, Long> anoMap = new TreeMap<>();
+        anoMap.put(2008, 2L);
 
-        Livro livro2 = livroComIdioma("en");
-        livro2.setDataPublicacao(LocalDate.of(2008, 8, 1));
-
-        when(repository.findAll()).thenReturn(Arrays.asList(livro1, livro2));
+        when(repository.countAll()).thenReturn(2L);
+        when(repository.countByIdioma()).thenReturn(Collections.emptyMap());
+        when(repository.countByAutor()).thenReturn(Collections.emptyMap());
+        when(repository.countByEditora()).thenReturn(Collections.emptyMap());
+        when(repository.countByAno()).thenReturn(anoMap);
 
         AcervoStats stats = useCase.getAcervo();
 
         assertEquals(1,  stats.getLivrosPorAno().size());
         assertEquals(2L, stats.getLivrosPorAno().get(2008));
-    }
-
-    private Livro livroComIdioma(String idioma) {
-        Livro livro = new Livro();
-        livro.setIdioma(idioma);
-        livro.setAutores(Collections.emptyList());
-        return livro;
-    }
-
-    private Livro livroComAutores(Autor... autores) {
-        Livro livro = new Livro();
-        livro.setAutores(Arrays.asList(autores));
-        return livro;
     }
 }

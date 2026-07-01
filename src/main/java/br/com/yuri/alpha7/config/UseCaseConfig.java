@@ -35,7 +35,7 @@ public class UseCaseConfig {
                 repos.editoraRepository(),
                 Arrays.asList(new CsvImportParser(), new XmlImportParser())
         );
-        this.acervoStats = new AcervoStatsUseCase(repos.livroRepository());
+        this.acervoStats = new AcervoStatsUseCase(repos.livroRepository(), repos.unitOfWork());
     }
 
     public IsbnLookupUseCase  isbnLookup()      { return isbnLookup; }

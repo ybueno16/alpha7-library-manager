@@ -26,6 +26,8 @@ import java.util.Objects;
  */
 public class Livro implements Serializable {
 
+    private static final long serialVersionUID = 1L;
+
     private Long id;
     private String titulo;
     private ISBN isbn;
@@ -35,8 +37,6 @@ public class Livro implements Serializable {
     private Editora editora;
     private List<Autor> autores = new ArrayList<>();
     private List<Livro> livrosSemelhantes = new ArrayList<>();
-
-    private static final long serialVersionUID = 1L;
 
     public Long getId() {
         return id;
@@ -99,7 +99,7 @@ public class Livro implements Serializable {
     }
 
     public void setAutores(List<Autor> autores) {
-        this.autores = autores;
+        this.autores = autores != null ? autores : new ArrayList<>();
     }
 
     public List<Livro> getLivrosSemelhantes() {

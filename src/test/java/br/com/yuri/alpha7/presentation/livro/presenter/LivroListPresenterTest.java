@@ -5,6 +5,7 @@ import br.com.yuri.alpha7.application.isbn.IsbnLookupUseCase;
 import br.com.yuri.alpha7.application.livro.BookCrudUseCase;
 import br.com.yuri.alpha7.application.livro.BookExportUseCase;
 import br.com.yuri.alpha7.application.livro.BookSearchUseCase;
+import br.com.yuri.alpha7.domain.exception.BookNotFoundException;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
 import br.com.yuri.alpha7.presentation.livro.view.LivroListView;
 import org.junit.jupiter.api.BeforeEach;
@@ -196,7 +197,7 @@ class LivroListPresenterTest {
     )
     void shouldShowErrorAndRefreshWhenSelectedLivroNotFoundById() {
         when(view.getSelectedLivro()).thenReturn(Optional.of(livroWithId(1L)));
-        when(crudUseCase.findById(1L)).thenReturn(Optional.empty());
+        when(crudUseCase.findById(1L)).thenThrow(new BookNotFoundException("Livro não encontrado"));
         when(searchUseCase.findAll()).thenReturn(Collections.emptyList());
 
         editAction.run();

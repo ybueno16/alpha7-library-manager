@@ -14,9 +14,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import br.com.yuri.alpha7.domain.editora.model.Editora;
+
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -75,10 +79,9 @@ class BookCrudUseCaseTest {
         Livro livro = bookWithIsbn(VALID_ISBN);
         when(livroRepository.findById(1L)).thenReturn(Optional.of(livro));
 
-        Optional<Livro> result = useCase.findById(1L);
+        Livro result = useCase.findById(1L);
 
-        assertTrue(result.isPresent());
-        assertEquals(livro, result.get());
+        assertEquals(livro, result);
     }
 
     @Test
@@ -100,8 +103,6 @@ class BookCrudUseCaseTest {
             " then deletion is delegated to the repository"
     )
     void shouldDelegateDeleteToRepositoryWhenBookExists() {
-        when(livroRepository.findById(1L)).thenReturn(Optional.of(new Livro()));
-
         assertDoesNotThrow(() -> useCase.delete(1L));
         verify(livroRepository).delete(1L);
     }
@@ -113,10 +114,57 @@ class BookCrudUseCaseTest {
             " then BookNotFoundException is thrown"
     )
     void shouldThrowBookNotFoundExceptionWhenDeletingNonExistentBook() {
-        when(livroRepository.findById(99L)).thenReturn(Optional.empty());
+        doThrow(new BookNotFoundException("Livro não encontrado")).when(livroRepository).delete(99L);
 
         assertThrows(BookNotFoundException.class, () -> useCase.delete(99L));
-        verify(livroRepository, never()).delete(anyLong());
+        verify(livroRepository).delete(99L);
+    }
+
+    @Test
+    @DisplayName(
+            "Given a book and an existing editora name," +
+            " when saveWithEditora is called," +
+            " then the editora is resolved and the book is saved within a single transaction"
+    )
+    void shouldResolveEditoraAndSaveBookInSingleTransaction() {
+        Livro livro    = bookWithIsbn(VALID_ISBN);
+        Editora editora = new Editora("Prentice Hall");
+
+        doAnswer(inv -> ((Supplier<?>) inv.getArgument(0)).get())
+                .when(unitOfWork).execute(any(Supplier.class));
+        when(editoraRepository.findByNome("Prentice Hall")).thenReturn(Optional.of(editora));
+        when(livroRepository.findByIsbn(VALID_ISBN)).thenReturn(Optional.empty());
+        when(livroRepository.save(livro)).thenReturn(livro);
+
+        Livro saved = useCase.saveWithEditora(livro, "Prentice Hall");
+
+        assertSame(livro, saved);
+        verify(editoraRepository).findByNome("Prentice Hall");
+        verify(livroRepository).save(livro);
+    }
+
+    @Test
+    @DisplayName(
+            "Given a book and a new editora name not yet in the database," +
+            " when saveWithEditora is called," +
+            " then the editora is created and the book is saved within a single transaction"
+    )
+    void shouldCreateEditoraWhenNotFoundAndSaveBook() {
+        Livro livro    = bookWithIsbn(VALID_ISBN);
+        Editora nova    = new Editora("NovaEditora");
+
+        doAnswer(inv -> ((Supplier<?>) inv.getArgument(0)).get())
+                .when(unitOfWork).execute(any(Supplier.class));
+        when(editoraRepository.findByNome("NovaEditora")).thenReturn(Optional.empty());
+        when(editoraRepository.save(any(Editora.class))).thenReturn(nova);
+        when(livroRepository.findByIsbn(VALID_ISBN)).thenReturn(Optional.empty());
+        when(livroRepository.save(livro)).thenReturn(livro);
+
+        Livro saved = useCase.saveWithEditora(livro, "NovaEditora");
+
+        assertSame(livro, saved);
+        verify(editoraRepository).save(any(Editora.class));
+        verify(livroRepository).save(livro);
     }
 
     private Livro bookWithIsbn(ISBN isbn) {

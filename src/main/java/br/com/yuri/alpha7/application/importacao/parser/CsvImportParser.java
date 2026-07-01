@@ -3,11 +3,10 @@ package br.com.yuri.alpha7.application.importacao.parser;
 import br.com.yuri.alpha7.application.importacao.model.ImportRecord;
 import br.com.yuri.alpha7.domain.exception.ImportException;
 import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,8 +17,8 @@ import java.util.List;
  * <p>Formato esperado (com cabeçalho):
  * {@code titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas}
  *
- * <p>O campo {@code autores} aceita múltiplos autores separados por vírgula dentro de aspas:
- * {@code "Autor A, Autor B"}.
+ * <p>O campo {@code autores} aceita múltiplos autores separados por ponto-e-vírgula:
+ * {@code "Autor A; Autor B"}.
  */
 public class CsvImportParser implements ImportParser {
 
@@ -32,25 +31,34 @@ public class CsvImportParser implements ImportParser {
     public List<ImportRecord> parse(InputStream stream) {
         try {
             Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8);
-            Iterable<CSVRecord> records = CSVFormat.DEFAULT.builder()
+            PushbackReader pr = new PushbackReader(reader, 1);
+            int first = pr.read();
+            if (first == -1) {
+                return new ArrayList<>();
+            }
+            if (first != '\uFEFF') {
+                pr.unread(first);
+            }
+
+            List<ImportRecord> result = new ArrayList<>();
+            try (CSVParser csvParser = CSVFormat.DEFAULT.builder()
                     .setHeader()
                     .setSkipHeaderRecord(true)
                     .setIgnoreEmptyLines(true)
                     .setTrim(true)
                     .build()
-                    .parse(reader);
-
-            List<ImportRecord> result = new ArrayList<>();
-            for (CSVRecord record : records) {
-                result.add(new ImportRecord(
-                        record.get("titulo"),
-                        record.get("isbn"),
-                        record.get("autores"),
-                        record.get("editora"),
-                        record.get("dataPublicacao"),
-                        record.get("idioma"),
-                        record.get("numeroPaginas")
-                ));
+                    .parse(pr)) {
+                for (CSVRecord record : csvParser) {
+                    result.add(new ImportRecord(
+                            record.get("titulo"),
+                            record.get("isbn"),
+                            record.get("autores"),
+                            record.get("editora"),
+                            record.get("dataPublicacao"),
+                            record.get("idioma"),
+                            record.get("numeroPaginas")
+                    ));
+                }
             }
             return result;
         } catch (Exception e) {

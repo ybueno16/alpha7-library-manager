@@ -378,7 +378,7 @@ class LivroFormPresenterTest {
 
         addSemelhanteAction.run();
 
-        verify(view).setLivrosSemelhantes(Collections.singletonList(semelhante));
+        verify(view, timeout(2000)).setLivrosSemelhantes(Collections.singletonList(semelhante));
     }
 
     @Test
@@ -394,6 +394,7 @@ class LivroFormPresenterTest {
 
         addSemelhanteAction.run();
 
+        verify(view, timeout(2000)).pickSemelhante(anyList());
         verify(view, never()).setLivrosSemelhantes(anyList());
     }
 
@@ -425,6 +426,75 @@ class LivroFormPresenterTest {
         removeSemelhanteAction.run();
 
         verify(view, never()).setLivrosSemelhantes(anyList());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a page count of zero," +
+            " when save is triggered," +
+            " then an error message is shown and nothing is saved"
+    )
+    void shouldShowErrorWhenPageCountIsZero() {
+        when(view.getNumeroPaginas()).thenReturn("0");
+
+        saveAction.run();
+
+        verify(view).showValidationError(anyString());
+        verify(crudUseCase, never()).saveWithEditora(any(), any());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a non-numeric page count," +
+            " when save is triggered," +
+            " then an error message is shown and nothing is saved"
+    )
+    void shouldShowErrorWhenPageCountIsNotNumeric() {
+        when(view.getNumeroPaginas()).thenReturn("abc");
+
+        saveAction.run();
+
+        verify(view).showValidationError(anyString());
+        verify(crudUseCase, never()).saveWithEditora(any(), any());
+    }
+
+    @Test
+    @DisplayName(
+            "Given an ISBN with invalid format on save," +
+            " when save is triggered," +
+            " then an error message is shown and nothing is saved"
+    )
+    void shouldShowErrorWhenIsbnFormatIsInvalidOnSave() {
+        when(view.getNumeroPaginas()).thenReturn("");
+        when(view.getTitulo()).thenReturn("Clean Code");
+        when(view.getIsbn()).thenReturn("not-an-isbn");
+
+        saveAction.run();
+
+        verify(view).showValidationError(anyString());
+        verify(crudUseCase, never()).saveWithEditora(any(), any());
+    }
+
+    @Test
+    @DisplayName(
+            "Given the form presenter is used for creation," +
+            " when initCreate is called," +
+            " then the presenter is ready to accept a new book with no pre-filled id"
+    )
+    void shouldPreparePresenterForNewBookOnInitCreate() {
+        LivroFormPresenter createPresenter = new LivroFormPresenter(
+                view, crudUseCase, searchUseCase, isbnLookupUseCase, onSuccess);
+        createPresenter.initCreate();
+
+        givenValidFormData();
+
+        ArgumentCaptor<Runnable> saveCaptor = ArgumentCaptor.forClass(Runnable.class);
+        verify(view, atLeastOnce()).onSave(saveCaptor.capture());
+        saveCaptor.getValue().run();
+
+        ArgumentCaptor<Livro> livroCaptor = ArgumentCaptor.forClass(Livro.class);
+        verify(crudUseCase, atLeastOnce()).saveWithEditora(livroCaptor.capture(), anyString());
+        assertNull(livroCaptor.getValue().getId());
     }
 
     private void givenValidFormData() {
