@@ -238,21 +238,21 @@ O formulário valida campos obrigatórios e o dígito verificador de ISBN-10/ISB
 
 ## Importação em lote
 
-O arquivo deve ter cabeçalho com as colunas abaixo. Apenas `titulo` e `isbn` são obrigatórios; os demais campos são opcionais.
+O arquivo deve ter cabeçalho com as colunas abaixo. `titulo`, `isbn` e `autores` são obrigatórios; os demais campos são opcionais.
 
 ```
 titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas
-Clean Code,9780132350884,"Robert C. Martin",Prentice Hall,2008-08-01,en,431
-The Pragmatic Programmer,9780135957059,"David Thomas;Andrew Hunt",Addison-Wesley,2019-09-23,en,352
+Clean Code,9780132350884,"Robert C. Martin",Prentice Hall,2008,en,431
+The Pragmatic Programmer,9780135957059,"David Thomas;Andrew Hunt",Addison-Wesley,2019,en,352
 ```
 
 | Campo | Formato | Observação |
 |---|---|---|
 | `titulo` | texto | obrigatório |
 | `isbn` | ISBN-10 ou ISBN-13 | obrigatório; hífens são ignorados |
-| `autores` | nomes separados por `;` | pode estar entre aspas duplas |
+| `autores` | nomes separados por `;` | obrigatório; pode estar entre aspas duplas |
 | `editora` | texto | opcional |
-| `dataPublicacao` | `yyyy-MM-dd` | opcional |
+| `dataPublicacao` | `yyyy` | opcional |
 | `idioma` | código de idioma (ex: `en`, `pt`) | opcional |
 | `numeroPaginas` | inteiro | opcional |
 
@@ -270,7 +270,7 @@ O arquivo XML deve seguir a estrutura abaixo. Os mesmos campos opcionais do CSV 
     <isbn>9780132350884</isbn>
     <autores>Robert C. Martin</autores>
     <editora>Prentice Hall</editora>
-    <dataPublicacao>2008-08-01</dataPublicacao>
+    <dataPublicacao>2008</dataPublicacao>
     <idioma>en</idioma>
     <numeroPaginas>431</numeroPaginas>
   </livro>

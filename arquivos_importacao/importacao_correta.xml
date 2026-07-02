@@ -5,7 +5,7 @@
         <isbn>9780142410387</isbn>
         <autores>Roald Dahl</autores>
         <editora>Puffin Books</editora>
-        <dataPublicacao>1982-09-01</dataPublicacao>
+        <dataPublicacao>1982</dataPublicacao>
         <idioma>eng</idioma>
         <numeroPaginas>208</numeroPaginas>
     </livro>
@@ -14,7 +14,7 @@
         <isbn>9780451524935</isbn>
         <autores>George Orwell</autores>
         <editora>Signet Classic</editora>
-        <dataPublicacao>1949-06-08</dataPublicacao>
+        <dataPublicacao>1949</dataPublicacao>
         <idioma>eng</idioma>
         <numeroPaginas>328</numeroPaginas>
     </livro>
@@ -23,7 +23,7 @@
         <isbn>9780132350884</isbn>
         <autores>Robert C. Martin</autores>
         <editora>Prentice Hall</editora>
-        <dataPublicacao>2008-08-01</dataPublicacao>
+        <dataPublicacao>2008</dataPublicacao>
         <idioma>eng</idioma>
         <numeroPaginas>431</numeroPaginas>
     </livro>
@@ -32,7 +32,7 @@
         <isbn>9780201633610</isbn>
         <autores>Erich Gamma, Richard Helm, Ralph Johnson, John Vlissides</autores>
         <editora>Addison-Wesley</editora>
-        <dataPublicacao>1994-10-31</dataPublicacao>
+        <dataPublicacao>1994</dataPublicacao>
         <idioma>eng</idioma>
         <numeroPaginas>395</numeroPaginas>
     </livro>
@@ -41,7 +41,7 @@
         <isbn>9788501064691</isbn>
         <autores>Paulo Coelho</autores>
         <editora>HarperCollins</editora>
-        <dataPublicacao>1988-01-01</dataPublicacao>
+        <dataPublicacao>1988</dataPublicacao>
         <idioma>por</idioma>
         <numeroPaginas>208</numeroPaginas>
     </livro>

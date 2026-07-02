@@ -68,7 +68,7 @@ class ImportUseCaseTest {
 
         ImportResult result = importFile(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
-                "Clean Code,9780132350884,Robert Martin,Prentice Hall,2008-08-01,English,431"
+                "Clean Code,9780132350884,Robert Martin,Prentice Hall,2008,English,431"
         ), "test.csv");
 
         assertEquals(1, result.getTotalNew());
@@ -92,7 +92,7 @@ class ImportUseCaseTest {
 
         ImportResult result = importFile(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
-                "Clean Code,9780132350884,Robert Martin,Prentice Hall,2022-01-01,English,500"
+                "Clean Code,9780132350884,Robert Martin,Prentice Hall,2022,English,500"
         ), "test.csv");
 
         assertEquals(0, result.getTotalNew());
@@ -120,7 +120,7 @@ class ImportUseCaseTest {
 
         ImportResult result = importFile(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
-                "Clean Code,9780132350884,Robert Martin,Prentice Hall,2008-08-01,English,431"
+                "Clean Code,9780132350884,Robert Martin,Prentice Hall,2008,English,431"
         ), "test.csv");
 
         assertEquals(1, result.getTotalNew());
@@ -138,7 +138,7 @@ class ImportUseCaseTest {
     void shouldAddErrorAndContinueWhenIsbnIsInvalid() {
         ImportResult result = importFile(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
-                "Invalid Book,INVALID,Author,Publisher,2023-01-01,EN,100"
+                "Invalid Book,INVALID,Author,Publisher,2023,EN,100"
         ), "test.csv");
 
         assertEquals(0, result.getTotalNew());
@@ -163,7 +163,7 @@ class ImportUseCaseTest {
 
         importFile(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
-                "Effective Java,9780134685991,Joshua Bloch,O'Reilly,2018-01-06,English,412"
+                "Effective Java,9780134685991,Joshua Bloch,O'Reilly,2018,English,412"
         ), "test.csv");
 
         verify(editoraRepository, never()).save(any());
@@ -185,8 +185,8 @@ class ImportUseCaseTest {
 
         ImportResult result = importFile(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
-                "Clean Code,9780132350884,Robert Martin,Prentice Hall,2008-08-01,English,431\n" +
-                "Invalid,INVALID,Author,Publisher,2023-01-01,EN,100"
+                "Clean Code,9780132350884,Robert Martin,Prentice Hall,2008,English,431\n" +
+                "Invalid,INVALID,Author,Publisher,2023,EN,100"
         ), "test.csv");
 
         assertEquals(2, result.getTotalProcessed());
@@ -235,7 +235,7 @@ class ImportUseCaseTest {
 
         ImportResult result = importFile(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
-                "Book,9780132350884,\"Author A;\",Pub,2023-01-01,EN,100\n"
+                "Book,9780132350884,\"Author A;\",Pub,2023,EN,100\n"
         ), "test.csv");
 
         assertEquals(1, result.getTotalNew());
@@ -263,7 +263,7 @@ class ImportUseCaseTest {
     void shouldFlagErrorWhenDateFormatIsInvalid() {
         List<ImportPreviewRecord> previews = useCase.preview(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
-                "Book,9780132350884,Author,Pub,31/12/2023,EN,100"
+                "Book,9780132350884,Author,Pub,2023-12-31,EN,100"
         ), "test.csv");
 
         assertEquals(1, previews.size());
@@ -279,7 +279,7 @@ class ImportUseCaseTest {
     void shouldFlagErrorWhenPageCountIsNotNumeric() {
         List<ImportPreviewRecord> previews = useCase.preview(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
-                "Book,9780132350884,Author,Pub,2023-01-01,EN,abc"
+                "Book,9780132350884,Author,Pub,2023,EN,abc"
         ), "test.csv");
 
         assertEquals(1, previews.size());
@@ -295,7 +295,7 @@ class ImportUseCaseTest {
     void shouldSkipDeselectedRecordsOnImport() {
         List<ImportPreviewRecord> previews = useCase.preview(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
-                "Book,9780132350884,Author,Pub,2023-01-01,EN,100"
+                "Book,9780132350884,Author,Pub,2023,EN,100"
         ), "test.csv");
 
         previews.get(0).setSelecionado(false);
@@ -314,11 +314,28 @@ class ImportUseCaseTest {
     void shouldFlagErrorWhenTituloIsEmpty() {
         List<ImportPreviewRecord> previews = useCase.preview(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
-                ",9780132350884,Author,Pub,2023-01-01,EN,100"
+                ",9780132350884,Author,Pub,2023,EN,100"
         ), "test.csv");
 
         assertEquals(1, previews.size());
         assertEquals(ImportPreviewRecord.Status.ERRO, previews.get(0).getStatus());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a CSV line without a valid author," +
+            " when preview is called," +
+            " then the record is flagged with ERRO status"
+    )
+    void shouldFlagErrorWhenAutoresIsEmpty() {
+        List<ImportPreviewRecord> previews = useCase.preview(csvStream(
+                "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
+                "Book,9780132350884,; ;,Pub,2023,EN,100"
+        ), "test.csv");
+
+        assertEquals(1, previews.size());
+        assertEquals(ImportPreviewRecord.Status.ERRO, previews.get(0).getStatus());
+        verify(livroRepository, never()).save(any());
     }
 
     @Test
@@ -345,7 +362,7 @@ class ImportUseCaseTest {
 
         List<ImportPreviewRecord> previews = useCase.preview(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
-                "Book,9780132350884,Author,Pub,2023-01-01,EN,100"
+                "Book,9780132350884,Author,Pub,2023,EN,100"
         ), "test.csv");
         ImportResult result = useCase.importSelected(previews);
 
@@ -365,7 +382,7 @@ class ImportUseCaseTest {
 
         List<ImportPreviewRecord> previews = useCase.preview(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
-                "Book,9780132350884,Author,Pub,2023-01-01,EN,100"
+                "Book,9780132350884,Author,Pub,2023,EN,100"
         ), "test.csv");
         ImportResult result = useCase.importSelected(previews);
 
@@ -385,7 +402,7 @@ class ImportUseCaseTest {
 
         List<ImportPreviewRecord> previews = useCase.preview(csvStream(
                 "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
-                "Book,9780132350884,Author,Pub,2023-01-01,EN,100"
+                "Book,9780132350884,Author,Pub,2023,EN,100"
         ), "test.csv");
         ImportResult result = useCase.importSelected(previews);
 

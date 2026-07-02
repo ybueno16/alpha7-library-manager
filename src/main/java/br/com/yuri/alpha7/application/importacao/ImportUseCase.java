@@ -19,7 +19,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -151,6 +150,15 @@ public class ImportUseCase {
                         record
                 );
             }
+            if (!hasValidAuthor(record.getAutores())) {
+                return new ImportPreviewRecord(
+                        line, record.getTitulo(), record.getIsbn(),
+                        ImportPreviewRecord.Status.ERRO,
+                        "Informe ao menos um autor válido",
+                        false,
+                        record
+                );
+            }
 
             ISBN isbn = new ISBN(record.getIsbn());
             validateOptionalFields(record.getDataPublicacao(), record.getNumeroPaginas());
@@ -198,10 +206,17 @@ public class ImportUseCase {
     }
 
     private void validateDate(String value) {
+        if (!value.matches("\\d{4}")) {
+            throw new ImportException("Ano de publicação inválido. Use YYYY (ex: 2024)");
+        }
+        int year;
         try {
-            LocalDate.parse(value);
-        } catch (DateTimeParseException e) {
-            throw new ImportException("Data no formato inválido. Use YYYY-MM-DD (ex: 2024-01-31)");
+            year = Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            throw new ImportException("Ano de publicação inválido. Use YYYY (ex: 2024)");
+        }
+        if (year < 1 || year > LocalDate.now().getYear()) {
+            throw new ImportException("Ano de publicação deve estar entre 0001 e o ano atual");
         }
     }
 
@@ -249,9 +264,7 @@ public class ImportUseCase {
 
     private List<Autor> resolveAuthors(String authorNames) {
         List<Autor> authors = new ArrayList<>();
-        for (String name : authorNames.split(";")) {
-            String trimmed = name.trim();
-            if (trimmed.isEmpty()) continue;
+        for (String trimmed : parseAuthorNames(authorNames)) {
             Autor autor = autorRepository.findByNome(trimmed)
                     .orElseGet(() -> autorRepository.save(new Autor(trimmed)));
             authors.add(autor);
@@ -259,9 +272,27 @@ public class ImportUseCase {
         return authors;
     }
 
+    private boolean hasValidAuthor(String authorNames) {
+        return !parseAuthorNames(authorNames).isEmpty();
+    }
+
+    private List<String> parseAuthorNames(String authorNames) {
+        List<String> names = new ArrayList<>();
+        if (authorNames == null) {
+            return names;
+        }
+        for (String name : authorNames.split(";")) {
+            String trimmed = name.trim();
+            if (!trimmed.isEmpty()) {
+                names.add(trimmed);
+            }
+        }
+        return names;
+    }
+
     private void assignFields(Livro livro, String dataPublicacao, String idioma, String numeroPaginas) {
         if (dataPublicacao != null && !dataPublicacao.isEmpty()) {
-            livro.setDataPublicacao(LocalDate.parse(dataPublicacao));
+            livro.setDataPublicacao(LocalDate.of(Integer.parseInt(dataPublicacao), 1, 1));
         }
         if (idioma != null && !idioma.isEmpty()) {
             livro.setIdioma(idioma);

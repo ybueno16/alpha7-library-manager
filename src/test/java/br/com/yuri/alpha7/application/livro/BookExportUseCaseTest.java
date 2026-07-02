@@ -74,7 +74,7 @@ class BookExportUseCaseTest {
         assertTrue(csv.contains("9780132350884"));
         assertTrue(csv.contains("Robert Martin"));
         assertTrue(csv.contains("Prentice Hall"));
-        assertTrue(csv.contains("2008-08-01"));
+        assertTrue(csv.contains("2008"));
         assertTrue(csv.contains("English"));
         assertTrue(csv.contains("431"));
     }

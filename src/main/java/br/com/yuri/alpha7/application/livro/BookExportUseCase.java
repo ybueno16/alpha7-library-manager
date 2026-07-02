@@ -66,7 +66,7 @@ public class BookExportUseCase {
                             .map(Autor::getNome)
                             .collect(Collectors.joining("; ")),
                     livro.getEditora() != null ? livro.getEditora().getNome() : "",
-                    livro.getDataPublicacao() != null ? livro.getDataPublicacao().toString() : "",
+                    livro.getDataPublicacao() != null ? String.valueOf(livro.getDataPublicacao().getYear()) : "",
                     livro.getIdioma() != null ? livro.getIdioma() : "",
                     livro.getNumeroPaginas() != null ? livro.getNumeroPaginas().toString() : ""
             );

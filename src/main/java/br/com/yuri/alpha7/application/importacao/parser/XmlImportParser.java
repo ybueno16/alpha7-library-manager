@@ -23,7 +23,7 @@ import java.util.List;
  *     <isbn>9780132350884</isbn>
  *     <autores>Robert C. Martin</autores>
  *     <editora>Prentice Hall</editora>
- *     <dataPublicacao>2008-08-01</dataPublicacao>
+ *     <dataPublicacao>2008</dataPublicacao>
  *     <idioma>eng</idioma>
  *     <numeroPaginas>431</numeroPaginas>
  *   </livro>

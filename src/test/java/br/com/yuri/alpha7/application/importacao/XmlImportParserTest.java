@@ -38,7 +38,7 @@ class XmlImportParserTest {
                 "<isbn>9780132350884</isbn>" +
                 "<autores>Robert C. Martin</autores>" +
                 "<editora>Prentice Hall</editora>" +
-                "<dataPublicacao>2008-08-01</dataPublicacao>" +
+                "<dataPublicacao>2008</dataPublicacao>" +
                 "<idioma>eng</idioma>" +
                 "<numeroPaginas>431</numeroPaginas>" +
                 "</livro></livros>";
@@ -51,7 +51,7 @@ class XmlImportParserTest {
         assertEquals("9780132350884", rec.getIsbn());
         assertEquals("Robert C. Martin", rec.getAutores());
         assertEquals("Prentice Hall", rec.getEditora());
-        assertEquals("2008-08-01", rec.getDataPublicacao());
+        assertEquals("2008", rec.getDataPublicacao());
         assertEquals("eng", rec.getIdioma());
         assertEquals("431", rec.getNumeroPaginas());
     }
