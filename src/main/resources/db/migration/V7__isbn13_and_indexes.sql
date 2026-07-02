@@ -1,9 +1,8 @@
--- V7: Convert existing ISBN-10 records to ISBN-13 canonical form,
---     replace the broad UNIQUE constraint with a partial index (active books only),
---     and add an index for ORDER BY titulo.
+-- Normaliza ISBN-10 legado para ISBN-13 e troca a unicidade global
+-- por unicidade apenas entre livros ativos.
 
--- Step 1: Convert ISBN-10 values (length = 10) to ISBN-13 in place.
--- Formula: prefix with "978", take first 9 digits of ISBN-10, compute EAN-13 check digit.
+ALTER TABLE livro DROP CONSTRAINT IF EXISTS livro_isbn_key;
+
 DO $$
 DECLARE
     rec         RECORD;
@@ -12,7 +11,11 @@ DECLARE
     i           INT;
     check_digit INT;
 BEGIN
-    FOR rec IN SELECT id, isbn FROM livro WHERE LENGTH(isbn) = 10 LOOP
+    FOR rec IN
+        SELECT id, isbn
+          FROM livro
+         WHERE isbn ~ '^[0-9]{9}[0-9Xx]$'
+    LOOP
         base13 := '978' || SUBSTRING(rec.isbn, 1, 9);
         total  := 0;
         FOR i IN 1..12 LOOP
@@ -27,15 +30,10 @@ BEGIN
     END LOOP;
 END $$;
 
--- Step 2: Drop the old broad UNIQUE constraint that blocked soft-deleted duplicates.
-ALTER TABLE livro DROP CONSTRAINT IF EXISTS livro_isbn_key;
-
--- Step 3: Partial UNIQUE index — only active (non-deleted) books must have unique ISBNs.
 CREATE UNIQUE INDEX IF NOT EXISTS uq_livro_isbn_ativo
     ON livro (isbn)
     WHERE deleted_at IS NULL;
 
--- Step 4: Index for ORDER BY titulo (used by findAll and findByFiltro).
 CREATE INDEX IF NOT EXISTS idx_livro_titulo
     ON livro (titulo)
     WHERE deleted_at IS NULL;
