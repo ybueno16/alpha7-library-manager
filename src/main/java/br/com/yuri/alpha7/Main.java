@@ -34,12 +34,12 @@ public class Main {
             SplashScreenWindow splash = new SplashScreenWindow();
             splash.setVisible(true);
 
-            new SwingWorker<MainWindow, Void>() {
+            new SwingWorker<UseCaseConfig, Void>() {
                 private InfrastructureConfig infra;
                 private RepositoryConfig repos;
 
                 @Override
-                protected MainWindow doInBackground() {
+                protected UseCaseConfig doInBackground() {
                     infra = new InfrastructureConfig();
                     repos = new RepositoryConfig();
                     UseCaseConfig useCases = new UseCaseConfig(infra, repos);
@@ -49,13 +49,14 @@ public class Main {
                         infra.shutdown();
                     }));
 
-                    return new MainWindow(useCases);
+                    return useCases;
                 }
 
                 @Override
                 protected void done() {
                     try {
-                        MainWindow window = get();
+                        UseCaseConfig useCases = get();
+                        MainWindow window = new MainWindow(useCases);
 
                         splash.dispose();
                         window.setVisible(true);
