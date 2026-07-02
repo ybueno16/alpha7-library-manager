@@ -21,11 +21,8 @@ public class UseCaseConfig {
     private final AcervoStatsUseCase acervoStats;
 
     public UseCaseConfig(InfrastructureConfig infra, RepositoryConfig repos) {
-        this.isbnLookup = new IsbnLookupUseCase(
-                repos.livroRepository(),
-                infra.openLibraryClient()
-        );
-        this.bookCrud      = new BookCrudUseCase(repos.livroRepository(), repos.editoraRepository(), repos.unitOfWork());
+        this.isbnLookup = new IsbnLookupUseCase(infra.openLibraryClient());
+        this.bookCrud      = new BookCrudUseCase(repos.livroRepository(), repos.autorRepository(), repos.editoraRepository(), repos.unitOfWork());
         this.bookSearch    = new BookSearchUseCase(repos.livroRepository());
         this.bookExport    = new BookExportUseCase(repos.livroRepository());
         this.importUseCase = new ImportUseCase(

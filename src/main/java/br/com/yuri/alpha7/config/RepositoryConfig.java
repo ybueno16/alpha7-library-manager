@@ -25,18 +25,19 @@ public class RepositoryConfig {
     }
 
     public LivroRepository livroRepository() {
-        return new LivroRepositoryImpl();
+        return livroRepository;
     }
+
     public AutorRepository autorRepository() {
-        return new AutorRepositoryImpl();
+        return autorRepository;
     }
 
     public EditoraRepository editoraRepository() {
-        return new EditoraRepositoryImpl();
+        return editoraRepository;
     }
 
     public UnitOfWork unitOfWork() {
-        return new HibernateUnitOfWork();
+        return unitOfWork;
     }
 
     public void shutdown() {
