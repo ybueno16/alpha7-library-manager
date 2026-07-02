@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 
+
 /**
  * Contrato da tela de listagem de livros no padrão MVP.
  *
@@ -69,10 +70,25 @@ public interface LivroListView extends CrudView {
      */
     void onExport(Runnable acao);
 
-    /**
-     * Registra a ação a ser executada quando o usuário disparar uma busca.
-     *
-     * @param acao ação de busca
-     */
     void onSearch(Runnable acao);
+
+    void showPaginationInfo(int currentPage, int totalPages);
+
+    void onNextPage(Runnable acao);
+
+    void onPreviousPage(Runnable acao);
+
+    String getAutorFiltro();
+
+    String getEditoraFiltro();
+
+    String getAnoDe();
+
+    String getAnoAte();
+
+    String getIdiomaFiltro();
+
+    void setEditoraOptions(List<String> editoras);
+
+    void setIdiomaOptions(List<String> idiomas);
 }

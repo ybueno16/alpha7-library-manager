@@ -7,6 +7,8 @@ import br.com.yuri.alpha7.application.livro.BookExportUseCase;
 import br.com.yuri.alpha7.application.livro.BookSearchUseCase;
 import br.com.yuri.alpha7.domain.exception.BookNotFoundException;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
+import br.com.yuri.alpha7.domain.livro.repository.LivroFiltro;
+import br.com.yuri.alpha7.domain.livro.repository.PagedResult;
 import br.com.yuri.alpha7.presentation.livro.view.LivroListView;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -22,7 +24,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -66,11 +68,12 @@ class LivroListPresenterTest {
     )
     void shouldShowAllLivrosOnLoad() {
         List<Livro> livros = Arrays.asList(new Livro(), new Livro());
-        when(searchUseCase.findAll()).thenReturn(livros);
+        when(searchUseCase.findAll(0, LivroListPresenter.PAGE_SIZE))
+                .thenReturn(new PagedResult<>(livros, 2));
 
         presenter.loadLivros();
 
-        verify(view).showLivros(livros);
+        verify(view, timeout(2000)).showLivros(livros);
     }
 
     @Test
@@ -82,13 +85,14 @@ class LivroListPresenterTest {
     void shouldSearchAllWhenTermIsEmpty() {
         List<Livro> livros = Collections.singletonList(new Livro());
         when(view.getSearchTerm()).thenReturn("   ");
-        when(searchUseCase.findAll()).thenReturn(livros);
+        when(searchUseCase.findAll(0, LivroListPresenter.PAGE_SIZE))
+                .thenReturn(new PagedResult<>(livros, 1));
 
         searchAction.run();
 
-        verify(searchUseCase).findAll();
-        verify(searchUseCase, never()).findByFiltro(anyString());
-        verify(view).showLivros(livros);
+        verify(searchUseCase, timeout(2000)).findAll(0, LivroListPresenter.PAGE_SIZE);
+        verify(searchUseCase, never()).findByFiltro(any(LivroFiltro.class), anyInt(), anyInt());
+        verify(view, timeout(2000)).showLivros(livros);
     }
 
     @Test
@@ -100,13 +104,17 @@ class LivroListPresenterTest {
     void shouldSearchByTermWhenTermIsNotEmpty() {
         List<Livro> livros = Collections.singletonList(new Livro());
         when(view.getSearchTerm()).thenReturn("Clean");
-        when(searchUseCase.findByFiltro("Clean")).thenReturn(livros);
+        when(searchUseCase.findByFiltro(any(LivroFiltro.class), eq(0), eq(LivroListPresenter.PAGE_SIZE)))
+                .thenReturn(new PagedResult<>(livros, 1));
 
         searchAction.run();
 
-        verify(searchUseCase).findByFiltro("Clean");
-        verify(searchUseCase, never()).findAll();
-        verify(view).showLivros(livros);
+        ArgumentCaptor<LivroFiltro> filtroCaptor = ArgumentCaptor.forClass(LivroFiltro.class);
+        verify(searchUseCase, timeout(2000)).findByFiltro(
+                filtroCaptor.capture(), eq(0), eq(LivroListPresenter.PAGE_SIZE));
+        org.junit.jupiter.api.Assertions.assertEquals("Clean", filtroCaptor.getValue().getTermo());
+        verify(searchUseCase, never()).findAll(anyInt(), anyInt());
+        verify(view, timeout(2000)).showLivros(livros);
     }
 
     @Test
@@ -148,12 +156,13 @@ class LivroListPresenterTest {
     void shouldDeleteAndRefreshWhenConfirmed() {
         when(view.getSelectedLivros()).thenReturn(Collections.singletonList(livroWithId(5L)));
         when(view.confirm(anyString())).thenReturn(true);
-        when(searchUseCase.findAll()).thenReturn(Collections.emptyList());
+        when(searchUseCase.findAll(0, LivroListPresenter.PAGE_SIZE))
+                .thenReturn(new PagedResult<>(Collections.emptyList(), 0));
 
         deleteAction.run();
 
-        verify(crudUseCase).delete(5L);
-        verify(view).showLivros(any());
+        verify(crudUseCase, timeout(2000)).delete(5L);
+        verify(view, timeout(2000)).showLivros(any());
     }
 
     @Test
@@ -165,14 +174,15 @@ class LivroListPresenterTest {
     void shouldDeleteAllSelectedLivrosWhenConfirmed() {
         when(view.getSelectedLivros()).thenReturn(Arrays.asList(livroWithId(1L), livroWithId(2L), livroWithId(3L)));
         when(view.confirm(anyString())).thenReturn(true);
-        when(searchUseCase.findAll()).thenReturn(Collections.emptyList());
+        when(searchUseCase.findAll(0, LivroListPresenter.PAGE_SIZE))
+                .thenReturn(new PagedResult<>(Collections.emptyList(), 0));
 
         deleteAction.run();
 
-        verify(crudUseCase).delete(1L);
-        verify(crudUseCase).delete(2L);
-        verify(crudUseCase).delete(3L);
-        verify(view).showLivros(any());
+        verify(crudUseCase, timeout(2000)).delete(1L);
+        verify(crudUseCase, timeout(2000)).delete(2L);
+        verify(crudUseCase, timeout(2000)).delete(3L);
+        verify(view, timeout(2000)).showLivros(any());
     }
 
     @Test
@@ -198,12 +208,13 @@ class LivroListPresenterTest {
     void shouldShowErrorAndRefreshWhenSelectedLivroNotFoundById() {
         when(view.getSelectedLivro()).thenReturn(Optional.of(livroWithId(1L)));
         when(crudUseCase.findById(1L)).thenThrow(new BookNotFoundException("Livro não encontrado"));
-        when(searchUseCase.findAll()).thenReturn(Collections.emptyList());
+        when(searchUseCase.findAll(0, LivroListPresenter.PAGE_SIZE))
+                .thenReturn(new PagedResult<>(Collections.emptyList(), 0));
 
         editAction.run();
 
-        verify(view).showErrorMessage(anyString());
-        verify(view).showLivros(any());
+        verify(view, timeout(2000)).showErrorMessage(anyString());
+        verify(view, timeout(2000)).showLivros(any());
     }
 
     @Test
@@ -215,13 +226,14 @@ class LivroListPresenterTest {
     void shouldShowErrorMessageWhenDeletionThrows() {
         when(view.getSelectedLivros()).thenReturn(Collections.singletonList(livroWithId(7L)));
         when(view.confirm(anyString())).thenReturn(true);
-        when(searchUseCase.findAll()).thenReturn(Collections.emptyList());
+        when(searchUseCase.findAll(0, LivroListPresenter.PAGE_SIZE))
+                .thenReturn(new PagedResult<>(Collections.emptyList(), 0));
         doThrow(new RuntimeException("constraint violation")).when(crudUseCase).delete(7L);
 
         deleteAction.run();
 
-        verify(view).showLivros(any());
-        verify(view).showErrorMessage(anyString());
+        verify(view, timeout(2000)).showLivros(any());
+        verify(view, timeout(2000)).showErrorMessage(anyString());
     }
 
     private Livro livroWithId(Long id) {

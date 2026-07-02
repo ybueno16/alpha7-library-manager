@@ -188,6 +188,10 @@ public class LivroFormPresenter {
             view.showValidationError("Título é obrigatório.");
             return false;
         }
+        if (view.getTitulo().length() > 512) {
+            view.showValidationError("Título muito longo (máximo 512 caracteres).");
+            return false;
+        }
         if (view.getIsbn().isEmpty()) {
             view.showValidationError("ISBN é obrigatório.");
             return false;
@@ -250,14 +254,11 @@ public class LivroFormPresenter {
     }
 
     private LocalDate parsePublishDate(String dateStr) {
-        if (dateStr.matches("\\d{4}")) {
-            return LocalDate.of(Integer.parseInt(dateStr), 1, 1);
-        }
-        return LocalDate.parse(dateStr);
+        return LocalDate.of(Integer.parseInt(dateStr), 1, 1);
     }
 
     private List<Autor> parseAutores(String autoresStr) {
-        return Arrays.stream(autoresStr.split(","))
+        return Arrays.stream(autoresStr.split(";"))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .map(Autor::new)

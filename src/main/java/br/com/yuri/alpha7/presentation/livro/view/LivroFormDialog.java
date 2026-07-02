@@ -188,7 +188,7 @@ public class LivroFormDialog extends JDialog implements LivroFormView {
         titleField.setText(livro.getTitulo());
         isbnField.setText(livro.getIsbn().getValue());
         autoresField.setText(livro.getAutores().stream()
-                .map(Autor::getNome).collect(Collectors.joining(", ")));
+                .map(Autor::getNome).collect(Collectors.joining("; ")));
         editoraField.setText(livro.getEditora() != null ? livro.getEditora().getNome() : "");
         dateField.setText(livro.getDataPublicacao() != null
                 ? String.valueOf(livro.getDataPublicacao().getYear()) : "");

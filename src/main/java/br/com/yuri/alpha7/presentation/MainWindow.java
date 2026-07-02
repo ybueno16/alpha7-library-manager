@@ -26,6 +26,8 @@ public class MainWindow extends JFrame {
 
     public MainWindow(UseCaseConfig useCases) {
         super("Alpha7 Library Manager");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
 
         LivroListPanel     livrosPanel     = new LivroListPanel();
         LivroListPresenter livrosPresenter = new LivroListPresenter(

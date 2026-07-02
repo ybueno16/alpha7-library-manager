@@ -497,6 +497,60 @@ class LivroFormPresenterTest {
         assertNull(livroCaptor.getValue().getId());
     }
 
+    @Test
+    @DisplayName(
+            "Given autores field containing only semicolons and spaces," +
+            " when save is triggered," +
+            " then an error message is shown and nothing is saved"
+    )
+    void shouldShowErrorWhenAutoresContainOnlyDelimiters() {
+        when(view.getNumeroPaginas()).thenReturn("");
+        when(view.getTitulo()).thenReturn("Clean Code");
+        when(view.getIsbn()).thenReturn(VALID_ISBN);
+        when(view.getAutores()).thenReturn(";  ;  ");
+
+        saveAction.run();
+
+        verify(view).showValidationError(anyString());
+        verify(crudUseCase, never()).saveWithEditora(any(), any());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a year of publication that is in the future," +
+            " when save is triggered," +
+            " then an error message is shown and nothing is saved"
+    )
+    void shouldShowErrorWhenPublicationYearIsInFuture() {
+        when(view.getNumeroPaginas()).thenReturn("");
+        when(view.getTitulo()).thenReturn("Clean Code");
+        when(view.getIsbn()).thenReturn(VALID_ISBN);
+        when(view.getAutores()).thenReturn("Robert Martin");
+        when(view.getDataPublicacao()).thenReturn("2999");
+
+        saveAction.run();
+
+        verify(view).showValidationError(anyString());
+        verify(crudUseCase, never()).saveWithEditora(any(), any());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a titulo longer than 512 characters," +
+            " when save is triggered," +
+            " then an error message is shown and nothing is saved"
+    )
+    void shouldShowErrorWhenTituloExceedsMaxLength() {
+        String longTitle = new String(new char[513]).replace('\0', 'A');
+        when(view.getNumeroPaginas()).thenReturn("");
+        when(view.getTitulo()).thenReturn(longTitle);
+
+        saveAction.run();
+
+        verify(view).showValidationError(anyString());
+        verify(crudUseCase, never()).saveWithEditora(any(), any());
+    }
+
     private void givenValidFormData() {
         when(view.getTitulo()).thenReturn("Clean Code");
         when(view.getIsbn()).thenReturn(VALID_ISBN);

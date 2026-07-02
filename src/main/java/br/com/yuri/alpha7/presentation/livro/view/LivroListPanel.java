@@ -3,19 +3,9 @@ package br.com.yuri.alpha7.presentation.livro.view;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
 import br.com.yuri.alpha7.presentation.livro.presenter.LivroTableModel;
 
-import javax.swing.AbstractAction;
-import javax.swing.JButton;
-import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JList;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTextField;
-import javax.swing.KeyStroke;
-import javax.swing.ListSelectionModel;
+import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableRowSorter;
-import javax.swing.JTable;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
@@ -24,6 +14,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -48,15 +39,23 @@ import java.util.Optional;
  */
 public class LivroListPanel extends JPanel implements LivroListView {
 
-    private final LivroTableModel tableModel   = new LivroTableModel();
-    private final JTable          table        = new JTable(tableModel);
-    private final JTextField      searchField  = new JTextField(20);
-    private final JButton         searchButton = new JButton("Buscar");
-    private final JButton         newButton    = new JButton("Novo");
-    private final JButton         editButton   = new JButton("Editar");
-    private final JButton         deleteButton = new JButton("Excluir");
-    private final JButton         importButton = new JButton("Importar");
-    private final JButton         exportButton = new JButton("Exportar");
+    private final LivroTableModel   tableModel      = new LivroTableModel();
+    private final JTable            table           = new JTable(tableModel);
+    private final JTextField        searchField     = new JTextField(20);
+    private final JButton           searchButton    = new JButton("Buscar");
+    private final JButton           newButton       = new JButton("Novo");
+    private final JButton           editButton      = new JButton("Editar");
+    private final JButton           deleteButton    = new JButton("Excluir");
+    private final JButton           importButton    = new JButton("Importar");
+    private final JButton           exportButton    = new JButton("Exportar");
+    private final JButton           prevButton      = new JButton("< Anterior");
+    private final JButton           nextButton      = new JButton("Próximo >");
+    private final JLabel            pageLabel       = new JLabel("Página 1 de 1");
+    private final JTextField        autorFiltroField = new JTextField(14);
+    private final JComboBox<String> editoraCombo    = new JComboBox<>();
+    private final JTextField        anoDeField      = new JTextField(5);
+    private final JTextField        anoAteField     = new JTextField(5);
+    private final JComboBox<String> idiomaCombo     = new JComboBox<>();
 
     private Runnable searchAction;
     private Runnable createAction;
@@ -71,9 +70,20 @@ public class LivroListPanel extends JPanel implements LivroListView {
 
     private void initComponents() {
         table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-        table.setRowSorter(new TableRowSorter<>(tableModel));
+        TableRowSorter<LivroTableModel> sorter = new TableRowSorter<>(tableModel);
+        Comparator<Integer> nullSafe = Comparator.nullsFirst(Comparator.naturalOrder());
+        sorter.setComparator(4, nullSafe);
+        sorter.setComparator(6, nullSafe);
+        table.setRowSorter(sorter);
         editButton.setEnabled(false);
         deleteButton.setEnabled(false);
+        prevButton.setEnabled(false);
+        nextButton.setEnabled(false);
+
+        DefaultTableCellRenderer centerRender = new DefaultTableCellRenderer();
+        centerRender.setHorizontalAlignment(SwingConstants.CENTER);
+        table.getColumnModel().getColumn(5).setCellRenderer(centerRender);
+        table.getColumnModel().getColumn(6).setCellRenderer(centerRender);
 
         table.getSelectionModel().addListSelectionListener(e -> {
             int count = table.getSelectedRowCount();
@@ -92,27 +102,57 @@ public class LivroListPanel extends JPanel implements LivroListView {
     }
 
     private void initLayout() {
-        setLayout(new BorderLayout(0, 8));
+        setLayout(new BorderLayout(0, 4));
 
-        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        searchPanel.add(new JLabel("Buscar:"));
-        searchPanel.add(searchField);
-        searchPanel.add(searchButton);
-        add(searchPanel, BorderLayout.NORTH);
+        editoraCombo.addItem("");
+        idiomaCombo.addItem("");
+
+        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+
+        filterPanel.add(new JLabel("Buscar:"));
+        filterPanel.add(searchField);
+        filterPanel.add(searchButton);
+
+        filterPanel.add(new JLabel("Autor:"));
+        filterPanel.add(autorFiltroField);
+
+        filterPanel.add(new JLabel("Editora:"));
+        filterPanel.add(editoraCombo);
+
+        filterPanel.add(new JLabel("De:"));
+        filterPanel.add(anoDeField);
+
+        filterPanel.add(new JLabel("Até:"));
+        filterPanel.add(anoAteField);
+
+        filterPanel.add(new JLabel("Idioma:"));
+        filterPanel.add(idiomaCombo);
+
+        add(filterPanel, BorderLayout.NORTH);
 
         add(new JScrollPane(table), BorderLayout.CENTER);
 
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        buttonPanel.add(newButton);
-        buttonPanel.add(editButton);
-        buttonPanel.add(deleteButton);
-        buttonPanel.add(importButton);
-        buttonPanel.add(exportButton);
-        add(buttonPanel, BorderLayout.SOUTH);
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+        actionPanel.add(newButton);
+        actionPanel.add(editButton);
+        actionPanel.add(deleteButton);
+        actionPanel.add(importButton);
+        actionPanel.add(exportButton);
+
+        JPanel pagePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 2));
+        pagePanel.add(prevButton);
+        pagePanel.add(pageLabel);
+        pagePanel.add(nextButton);
+
+        JPanel southPanel = new JPanel(new BorderLayout());
+        southPanel.add(pagePanel, BorderLayout.NORTH);
+        southPanel.add(actionPanel, BorderLayout.SOUTH);
+
+        add(southPanel, BorderLayout.SOUTH);
     }
 
     private void initKeyBindings() {
-        bindKey("search", KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0),
+        bindKey("search", KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0),
                 () -> { if (searchAction != null) searchAction.run(); });
         bindKey("new", KeyStroke.getKeyStroke(KeyEvent.VK_N, InputEvent.CTRL_DOWN_MASK),
                 () -> { if (createAction != null) createAction.run(); });
@@ -170,6 +210,23 @@ public class LivroListPanel extends JPanel implements LivroListView {
     }
 
     @Override
+    public void showPaginationInfo(int currentPage, int totalPages) {
+        pageLabel.setText("Página " + currentPage + " de " + totalPages);
+        prevButton.setEnabled(currentPage > 1);
+        nextButton.setEnabled(currentPage < totalPages);
+    }
+
+    @Override
+    public void onNextPage(Runnable acao) {
+        nextButton.addActionListener(e -> acao.run());
+    }
+
+    @Override
+    public void onPreviousPage(Runnable acao) {
+        prevButton.addActionListener(e -> acao.run());
+    }
+
+    @Override
     public void onSearch(Runnable acao) {
         this.searchAction = acao;
         searchButton.addActionListener(e -> acao.run());
@@ -213,5 +270,54 @@ public class LivroListPanel extends JPanel implements LivroListView {
     @Override
     public void showErrorMessage(String message) {
         JOptionPane.showMessageDialog(this, message, "Erro", JOptionPane.ERROR_MESSAGE);
+    }
+
+    @Override
+    public String getAutorFiltro() {
+        return autorFiltroField.getText();
+    }
+
+    @Override
+    public String getEditoraFiltro() {
+        Object sel = editoraCombo.getSelectedItem();
+        return sel != null ? sel.toString() : "";
+    }
+
+    @Override
+    public String getAnoDe() {
+        return anoDeField.getText();
+    }
+
+    @Override
+    public String getAnoAte() {
+        return anoAteField.getText();
+    }
+
+    @Override
+    public String getIdiomaFiltro() {
+        Object sel = idiomaCombo.getSelectedItem();
+        return sel != null ? sel.toString() : "";
+    }
+
+    @Override
+    public void setEditoraOptions(List<String> editoras) {
+        String current = getEditoraFiltro();
+        editoraCombo.removeAllItems();
+        editoraCombo.addItem("");
+        for (String e : editoras) {
+            editoraCombo.addItem(e);
+        }
+        editoraCombo.setSelectedItem(current);
+    }
+
+    @Override
+    public void setIdiomaOptions(List<String> idiomas) {
+        String current = getIdiomaFiltro();
+        idiomaCombo.removeAllItems();
+        idiomaCombo.addItem("");
+        for (String i : idiomas) {
+            idiomaCombo.addItem(i);
+        }
+        idiomaCombo.setSelectedItem(current);
     }
 }

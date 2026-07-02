@@ -7,10 +7,14 @@ import br.com.yuri.alpha7.application.isbn.IsbnLookupUseCase;
 import br.com.yuri.alpha7.application.livro.BookCrudUseCase;
 import br.com.yuri.alpha7.application.livro.BookExportUseCase;
 import br.com.yuri.alpha7.application.livro.BookSearchUseCase;
+import br.com.yuri.alpha7.domain.exception.BookNotFoundException;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
+import br.com.yuri.alpha7.domain.livro.repository.LivroFiltro;
+import br.com.yuri.alpha7.domain.livro.repository.PagedResult;
 import br.com.yuri.alpha7.presentation.livro.view.ImportPreviewDialog;
 import br.com.yuri.alpha7.presentation.livro.view.LivroFormDialog;
 import br.com.yuri.alpha7.presentation.livro.view.LivroListView;
+import br.com.yuri.alpha7.presentation.livro.view.ProgressDialog;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -19,27 +23,15 @@ import java.awt.Frame;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import br.com.yuri.alpha7.domain.exception.BookNotFoundException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 
-/**
- * Presenter responsável por toda a lógica da tela de listagem de livros.
- *
- * <p>Ao ser instanciado, registra callbacks na view para busca, exclusão, criação, edição e
- * importação. O estado da tela (lista exibida, livro selecionado) fica na view; o presenter
- * apenas reage a eventos e direciona o fluxo.
- *
- * <p>A operação de exclusão exige confirmação explícita do usuário via
- * {@link br.com.yuri.alpha7.presentation.livro.view.LivroListView#confirm(String)}.
- * Ao confirmar, o presenter delega ao {@link br.com.yuri.alpha7.application.livro.BookCrudUseCase}
- * e em seguida recarrega a lista.
- *
- * <p>As operações de criação e edição abrem um {@link br.com.yuri.alpha7.presentation.livro.view.LivroFormDialog}
- * e configuram um {@link LivroFormPresenter} que, ao salvar com sucesso, chama
- * {@link #loadLivros()} para atualizar a tabela.
- */
 public class LivroListPresenter {
+
+    static final int PAGE_SIZE = 50;
 
     private final Frame            parent;
     private final LivroListView     view;
@@ -48,6 +40,8 @@ public class LivroListPresenter {
     private final BookExportUseCase exportUseCase;
     private final ImportUseCase     importUseCase;
     private final IsbnLookupUseCase isbnLookupUseCase;
+
+    private int currentPage = 0;
 
     public LivroListPresenter(Frame parent,
                               LivroListView view,
@@ -67,12 +61,9 @@ public class LivroListPresenter {
     }
 
     public void loadLivros() {
-        try {
-            view.showLivros(searchUseCase.findAll());
-        } catch (Exception e) {
-            view.showErrorMessage("Erro ao carregar livros: " +
-                    e.getMessage());
-        }
+        currentPage = 0;
+        loadFilterOptions();
+        loadPage();
     }
 
     private void registerCallbacks() {
@@ -82,21 +73,101 @@ public class LivroListPresenter {
         view.onEdit(this::openEditForm);
         view.onImport(this::importFile);
         view.onExport(this::exportFile);
+        view.onNextPage(this::nextPage);
+        view.onPreviousPage(this::previousPage);
     }
 
     private void search() {
-        try {
-            String raw = view.getSearchTerm();
-            String term = raw != null ? raw.trim() : "";
-            if (term.isEmpty()) {
-                view.showLivros(searchUseCase.findAll());
-                return;
+        currentPage = 0;
+        loadPage();
+    }
+
+    private void nextPage() {
+        currentPage++;
+        loadPage();
+    }
+
+    private void previousPage() {
+        if (currentPage > 0) currentPage--;
+        loadPage();
+    }
+
+    private void loadPage() {
+        final int page = currentPage;
+        final LivroFiltro filtro = buildFiltro();
+
+        new SwingWorker<PagedResult<Livro>, Void>() {
+            @Override
+            protected PagedResult<Livro> doInBackground() {
+                if (filtro.isEmpty()) {
+                    return searchUseCase.findAll(page, PAGE_SIZE);
+                }
+                return searchUseCase.findByFiltro(filtro, page, PAGE_SIZE);
             }
-            view.showLivros(searchUseCase.findByFiltro(term));
-        } catch (Exception e) {
-            view.showErrorMessage("Erro ao pesquisar: " + e.getMessage());
+
+            @Override
+            protected void done() {
+                try {
+                    PagedResult<Livro> result = get();
+                    int totalPages = Math.max(1, result.totalPages(PAGE_SIZE));
+                    view.showLivros(result.getItems());
+                    view.showPaginationInfo(page + 1, totalPages);
+                } catch (Exception e) {
+                    Throwable cause = e.getCause() != null ? e.getCause() : e;
+                    view.showErrorMessage("Erro ao carregar livros: " + cause.getMessage());
+                }
+            }
+        }.execute();
+    }
+
+    private LivroFiltro buildFiltro() {
+        return new LivroFiltro(
+                trim(view.getSearchTerm()),
+                trim(view.getAutorFiltro()),
+                trim(view.getEditoraFiltro()),
+                parseYear(view.getAnoDe()),
+                parseYear(view.getAnoAte()),
+                trim(view.getIdiomaFiltro())
+        );
+    }
+
+    private void loadFilterOptions() {
+        new SwingWorker<List<List<String>>, Void>() {
+            @Override
+            protected List<List<String>> doInBackground() {
+                return Arrays.asList(
+                        searchUseCase.findAllEditorasAtivas(),
+                        searchUseCase.findAllIdiomasDistintos()
+                );
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    List<List<String>> result = get();
+                    view.setEditoraOptions(result.get(0));
+                    view.setIdiomaOptions(result.get(1));
+                } catch (Exception ignored) {
+                }
+            }
+        }.execute();
+    }
+
+    private static String trim(String s) {
+        return s != null ? s.trim() : "";
+    }
+
+    private static Integer parseYear(String s) {
+        if (s == null || s.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
+
     private void delete() {
         List<Livro> selected = view.getSelectedLivros();
         if (selected.isEmpty()) {
@@ -108,18 +179,34 @@ public class LivroListPresenter {
                 : "Excluir " + selected.size() + " livro(s) selecionado(s)?";
         if (!view.confirm(message)) return;
 
-        List<String> failed = new java.util.ArrayList<>();
-        for (Livro livro : selected) {
-            try {
-                crudUseCase.delete(livro.getId());
-            } catch (Exception e) {
-                failed.add("\"" + livro.getTitulo() + "\"");
+        new SwingWorker<List<String>, Void>() {
+            @Override
+            protected List<String> doInBackground() {
+                List<String> failed = new ArrayList<>();
+                for (Livro livro : selected) {
+                    try {
+                        crudUseCase.delete(livro.getId());
+                    } catch (Exception e) {
+                        failed.add("\"" + livro.getTitulo() + "\"");
+                    }
+                }
+                return failed;
             }
-        }
-        search();
-        if (!failed.isEmpty()) {
-            view.showErrorMessage("Não foi possível excluir: " + String.join(", ", failed));
-        }
+
+            @Override
+            protected void done() {
+                try {
+                    List<String> failed = get();
+                    loadPage();
+                    if (!failed.isEmpty()) {
+                        view.showErrorMessage("Não foi possível excluir: " + String.join(", ", failed));
+                    }
+                } catch (Exception e) {
+                    Throwable cause = e.getCause() != null ? e.getCause() : e;
+                    view.showErrorMessage("Erro ao excluir: " + cause.getMessage());
+                }
+            }
+        }.execute();
     }
 
     private void importFile() {
@@ -153,14 +240,32 @@ public class LivroListPresenter {
 
                 if (!dialog.isConfirmed()) return;
 
-                new SwingWorker<ImportResult, Void>() {
+                int totalImportavel = (int) previews.stream()
+                        .filter(p -> p.isSelecionado()
+                                && p.getStatus() != ImportPreviewRecord.Status.ERRO)
+                        .count();
+
+                ProgressDialog progressDialog = new ProgressDialog(
+                        parent,
+                        "Importando livros...",
+                        totalImportavel,
+                        (current, t) -> "Importando " + current + " de " + t + "...");
+
+                SwingWorker<ImportResult, Integer> importWorker =
+                        new SwingWorker<ImportResult, Integer>() {
                     @Override
                     protected ImportResult doInBackground() throws Exception {
-                        return importUseCase.importSelected(previews);
+                        return importUseCase.importSelected(previews, this::publish);
+                    }
+
+                    @Override
+                    protected void process(java.util.List<Integer> chunks) {
+                        progressDialog.update(chunks.get(chunks.size() - 1), totalImportavel);
                     }
 
                     @Override
                     protected void done() {
+                        progressDialog.dispose();
                         try {
                             ImportResult result = get();
                             loadLivros();
@@ -169,7 +274,10 @@ public class LivroListPresenter {
                             view.showErrorMessage("Erro ao importar: " + e.getMessage());
                         }
                     }
-                }.execute();
+                };
+
+                importWorker.execute();
+                progressDialog.setVisible(true);
             }
         }.execute();
     }
@@ -209,34 +317,63 @@ public class LivroListPresenter {
         JFileChooser chooser = new JFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter("Arquivo CSV (*.csv)", "csv"));
         chooser.setSelectedFile(new File("acervo.csv"));
-        if (chooser.showSaveDialog(parent) != JFileChooser.APPROVE_OPTION) {
-            return;
-        }
+        if (chooser.showSaveDialog(parent) != JFileChooser.APPROVE_OPTION) return;
+
         File file = chooser.getSelectedFile();
         if (!file.getName().toLowerCase().endsWith(".csv")) {
             file = new File(file.getAbsolutePath() + ".csv");
         }
-        if (file.exists()) {
+        final File finalFile = file;
+        if (finalFile.exists()) {
             int confirm = JOptionPane.showConfirmDialog(
                     parent,
-                    "O arquivo \"" + file.getName() + "\" já existe. Deseja substituí-lo?",
+                    "O arquivo \"" + finalFile.getName() + "\" já existe. Deseja substituí-lo?",
                     "Confirmar substituição",
                     JOptionPane.YES_NO_OPTION
             );
             if (confirm != JOptionPane.YES_OPTION) return;
         }
-        try (OutputStreamWriter writer = new OutputStreamWriter(
-                Files.newOutputStream(file.toPath()),
-                StandardCharsets.UTF_8)
-        ) {
-            writer.write('﻿');
-            int total = exportUseCase.exportToCsv(writer);
-            JOptionPane.showMessageDialog(parent,
-                    total + " livro(s) exportado(s) para " + file.getName(),
-                    "Exportação concluída", JOptionPane.INFORMATION_MESSAGE);
-        } catch (Exception e) {
-            view.showErrorMessage("Erro ao exportar: " + e.getMessage());
-        }
+
+        ProgressDialog progressDialog = new ProgressDialog(
+                parent,
+                "Exportando livros...",
+                0,
+                (current, total) -> "Exportando " + current + " de " + total + " livros...");
+
+        SwingWorker<Integer, int[]> exportWorker = new SwingWorker<Integer, int[]>() {
+            @Override
+            protected Integer doInBackground() throws Exception {
+                try (OutputStreamWriter writer = new OutputStreamWriter(
+                        Files.newOutputStream(finalFile.toPath()), StandardCharsets.UTF_8)) {
+                    writer.write('﻿');
+                    return exportUseCase.exportToCsv(writer,
+                            (current, total) -> publish(new int[]{current, total}));
+                }
+            }
+
+            @Override
+            protected void process(java.util.List<int[]> chunks) {
+                int[] last = chunks.get(chunks.size() - 1);
+                progressDialog.update(last[0], last[1]);
+            }
+
+            @Override
+            protected void done() {
+                progressDialog.dispose();
+                try {
+                    int total = get();
+                    JOptionPane.showMessageDialog(parent,
+                            total + " livro(s) exportado(s) para " + finalFile.getName(),
+                            "Exportação concluída", JOptionPane.INFORMATION_MESSAGE);
+                } catch (Exception e) {
+                    Throwable cause = e.getCause() != null ? e.getCause() : e;
+                    view.showErrorMessage("Erro ao exportar: " + cause.getMessage());
+                }
+            }
+        };
+
+        exportWorker.execute();
+        progressDialog.setVisible(true);
     }
 
     private void openCreateForm() {
@@ -248,18 +385,36 @@ public class LivroListPresenter {
 
     private void openEditForm() {
         Optional<Livro> selected = view.getSelectedLivro();
-        if (!selected.isPresent()) {
-            return;
-        }
-        try {
-            Livro livroCompleto = crudUseCase.findById(selected.get().getId());
-            LivroFormDialog dialog = new LivroFormDialog(parent);
-            LivroFormPresenter presenter = new LivroFormPresenter(dialog, crudUseCase, searchUseCase, isbnLookupUseCase, this::loadLivros);
-            presenter.initEdit(livroCompleto);
-            dialog.setVisible(true);
-        } catch (BookNotFoundException e) {
-            view.showErrorMessage("Livro não encontrado. A lista será recarregada.");
-            loadLivros();
-        }
+        if (!selected.isPresent()) return;
+
+        new SwingWorker<Livro, Void>() {
+            @Override
+            protected Livro doInBackground() {
+                return crudUseCase.findById(selected.get().getId());
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    Livro livroCompleto = get();
+                    LivroFormDialog dialog = new LivroFormDialog(parent);
+                    LivroFormPresenter presenter = new LivroFormPresenter(
+                            dialog, crudUseCase, searchUseCase, isbnLookupUseCase,
+                            LivroListPresenter.this::loadLivros);
+                    presenter.initEdit(livroCompleto);
+                    dialog.setVisible(true);
+                } catch (ExecutionException e) {
+                    if (e.getCause() instanceof BookNotFoundException) {
+                        view.showErrorMessage("Livro não encontrado. A lista será recarregada.");
+                        loadLivros();
+                        return;
+                    }
+                    Throwable cause = e.getCause() != null ? e.getCause() : e;
+                    view.showErrorMessage("Erro ao abrir livro: " + cause.getMessage());
+                } catch (Exception e) {
+                    view.showErrorMessage("Erro ao abrir livro: " + e.getMessage());
+                }
+            }
+        }.execute();
     }
 }
