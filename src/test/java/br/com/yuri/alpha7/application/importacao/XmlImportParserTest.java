@@ -110,6 +110,28 @@ class XmlImportParserTest {
         );
     }
 
+    @Test
+    @DisplayName(
+            "Given an XML with a nested livro element inside another livro," +
+            " when parse is called," +
+            " then the nested element is ignored"
+    )
+    void shouldIgnoreNestedLivroElements() {
+        String xml = "<livros>" +
+                "<livro>" +
+                "  <titulo>Outer</titulo>" +
+                "  <isbn>9780132350884</isbn>" +
+                "  <autores>Author</autores>" +
+                "  <livro><titulo>Nested</titulo><isbn>9780134685991</isbn></livro>" +
+                "</livro>" +
+                "</livros>";
+
+        List<ImportRecord> records = parser.parse(stream(xml));
+
+        assertEquals(1, records.size());
+        assertEquals("Outer", records.get(0).getTitulo());
+    }
+
     private InputStream stream(String content) {
         return new ByteArrayInputStream(content.getBytes());
     }

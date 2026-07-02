@@ -61,8 +61,10 @@ public class CsvImportParser implements ImportParser {
                 }
             }
             return result;
+        } catch (ImportException e) {
+            throw e;
         } catch (Exception e) {
-            throw new ImportException("Erro ao ler arquivo CSV: " + e.getMessage());
+            throw new ImportException("Erro ao ler arquivo CSV: " + e.getMessage(), e);
         }
     }
 }

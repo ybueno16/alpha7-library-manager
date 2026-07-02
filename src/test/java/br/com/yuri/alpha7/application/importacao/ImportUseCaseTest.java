@@ -420,6 +420,63 @@ class ImportUseCaseTest {
         assertEquals("9780132350884", previews.get(0).getIsbn());
     }
 
+    @Test
+    @DisplayName(
+            "Given a CSV row where autores contains an empty segment between delimiters," +
+            " when importSelected is called," +
+            " then the empty segment is skipped and valid authors are saved"
+    )
+    void shouldSkipEmptyAuthorSegmentsOnImport() {
+        when(livroRepository.findByIsbn(any())).thenReturn(Optional.empty());
+        when(livroRepository.findByIsbnIncludingDeleted(any())).thenReturn(Optional.empty());
+        when(livroRepository.save(any())).thenReturn(new Livro());
+        when(autorRepository.findByNome("Author1")).thenReturn(Optional.of(new Autor("Author1")));
+        when(autorRepository.findByNome("Author2")).thenReturn(Optional.of(new Autor("Author2")));
+
+        List<ImportPreviewRecord> previews = useCase.preview(csvStream(
+                "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
+                "Clean Code,9780132350884,Author1;;Author2,,,,"
+        ), "test.csv");
+        ImportResult result = useCase.importSelected(previews);
+
+        assertFalse(result.hasErrors());
+        assertEquals(1, result.getTotalNew());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a CSV row with numeroPaginas equal to zero," +
+            " when importSelected is called," +
+            " then the record has an error status"
+    )
+    void shouldRejectRecordWithZeroPages() {
+        List<ImportPreviewRecord> previews = useCase.preview(csvStream(
+                "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
+                "Clean Code,9780132350884,Robert Martin,,,,0"
+        ), "test.csv");
+
+        ImportResult result = useCase.importSelected(previews);
+
+        assertTrue(result.hasErrors());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a CSV row with negative numeroPaginas," +
+            " when importSelected is called," +
+            " then the record has an error status"
+    )
+    void shouldRejectRecordWithNegativePages() {
+        List<ImportPreviewRecord> previews = useCase.preview(csvStream(
+                "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
+                "Clean Code,9780132350884,Robert Martin,,,,-5"
+        ), "test.csv");
+
+        ImportResult result = useCase.importSelected(previews);
+
+        assertTrue(result.hasErrors());
+    }
+
     private ImportResult importFile(InputStream stream, String filename) {
         List<ImportPreviewRecord> previews = useCase.preview(stream, filename);
         return useCase.importSelected(previews);

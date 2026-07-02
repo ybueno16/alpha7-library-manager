@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Caso de uso para importação em lote de livros a partir de arquivos externos.
@@ -82,6 +83,7 @@ public class ImportUseCase {
         logger.info("Preview iniciado: '{}'", filename);
         List<ImportRecord> records = parser.parse(stream);
         List<ImportPreviewRecord> previews = new ArrayList<>();
+        // CSV: starts at line 2 (line 1 is the header); XML: estimated from element index (no real line number)
         int lineNumber = "csv".equals(ext) ? 2 : 1;
 
         for (ImportRecord record : records) {
@@ -100,6 +102,10 @@ public class ImportUseCase {
      * @return resultado com contadores de importados, ignorados e erros
      */
     public ImportResult importSelected(List<ImportPreviewRecord> previews) {
+        return importSelected(previews, null);
+    }
+
+    public ImportResult importSelected(List<ImportPreviewRecord> previews, Consumer<Integer> onProgress) {
         ImportResult result = new ImportResult();
 
         for (ImportPreviewRecord preview : previews) {
@@ -114,6 +120,9 @@ public class ImportUseCase {
             try {
                 unitOfWork.execute(() -> saveRecord(preview.getSourceRecord()));
                 result.incrementNew();
+                if (onProgress != null) {
+                    onProgress.accept(result.getTotalNew());
+                }
             } catch (IsbnInvalidoException e) {
                 logger.warn("Erro na linha {}: ISBN inválido — {}", preview.getLineNumber(), e.getMessage());
                 result.addError("Linha " + preview.getLineNumber() + ": ISBN inválido — " + e.getMessage());
@@ -197,10 +206,14 @@ public class ImportUseCase {
     }
 
     private void validatePages(String value) {
+        int pages;
         try {
-            Integer.parseInt(value);
+            pages = Integer.parseInt(value);
         } catch (NumberFormatException e) {
             throw new ImportException("Número de páginas inválido. Informe apenas números inteiros");
+        }
+        if (pages <= 0) {
+            throw new ImportException("Número de páginas deve ser maior que zero");
         }
     }
 
@@ -247,13 +260,13 @@ public class ImportUseCase {
     }
 
     private void assignFields(Livro livro, String dataPublicacao, String idioma, String numeroPaginas) {
-        if (!dataPublicacao.isEmpty()) {
+        if (dataPublicacao != null && !dataPublicacao.isEmpty()) {
             livro.setDataPublicacao(LocalDate.parse(dataPublicacao));
         }
-        if (!idioma.isEmpty()) {
+        if (idioma != null && !idioma.isEmpty()) {
             livro.setIdioma(idioma);
         }
-        if (!numeroPaginas.isEmpty()) {
+        if (numeroPaginas != null && !numeroPaginas.isEmpty()) {
             livro.setNumeroPaginas(Integer.parseInt(numeroPaginas));
         }
     }

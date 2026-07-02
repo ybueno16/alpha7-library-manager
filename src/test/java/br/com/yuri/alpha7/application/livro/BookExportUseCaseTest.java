@@ -15,8 +15,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -137,6 +139,25 @@ class BookExportUseCaseTest {
         String csv = writer.toString();
         assertTrue(csv.contains("Book One"));
         assertTrue(csv.contains("Book Two"));
+    }
+
+    @Test
+    @DisplayName(
+            "Given multiple books in the collection," +
+            " when exportToCsv is called with a progress callback," +
+            " then callback receives current and total for each book exported"
+    )
+    void shouldInvokeProgressCallbackForEachBookExported() throws IOException {
+        Livro livro1 = minimalBook("Book One", "9780132350884");
+        Livro livro2 = minimalBook("Book Two", "9780134685991");
+        when(livroRepository.findAll()).thenReturn(Arrays.asList(livro1, livro2));
+
+        List<int[]> progress = new ArrayList<>();
+        useCase.exportToCsv(new StringWriter(), (current, total) -> progress.add(new int[]{current, total}));
+
+        assertEquals(2, progress.size());
+        assertArrayEquals(new int[]{1, 2}, progress.get(0));
+        assertArrayEquals(new int[]{2, 2}, progress.get(1));
     }
 
     private Livro minimalBook(String titulo, String isbn) {

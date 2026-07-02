@@ -52,12 +52,17 @@ public class XmlImportParser implements ImportParser {
                     factory.setExpandEntityReferences(false);
             DocumentBuilder builder = factory.newDocumentBuilder();
             Document doc = builder.parse(stream);
-            doc.getDocumentElement().normalize();
+            Element root = doc.getDocumentElement();
+            root.normalize();
 
             NodeList nodes = doc.getElementsByTagName("livro");
             List<ImportRecord> result = new ArrayList<>();
             for (int i = 0; i < nodes.getLength(); i++) {
                 Element el = (Element) nodes.item(i);
+                // Only direct children of root; nested <livro> inside fields are ignored
+                if (el.getParentNode() != root) {
+                    continue;
+                }
                 result.add(new ImportRecord(
                         text(el, "titulo"),
                         text(el, "isbn"),
@@ -69,8 +74,10 @@ public class XmlImportParser implements ImportParser {
                 ));
             }
             return result;
+        } catch (ImportException e) {
+            throw e;
         } catch (Exception e) {
-            throw new ImportException("Erro ao ler arquivo XML: " + e.getMessage());
+            throw new ImportException("Erro ao ler arquivo XML: " + e.getMessage(), e);
         }
     }
 
