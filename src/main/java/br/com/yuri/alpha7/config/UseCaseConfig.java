@@ -11,6 +11,13 @@ import br.com.yuri.alpha7.application.stats.AcervoStatsUseCase;
 
 import java.util.Arrays;
 
+/**
+ * Wiring manual dos casos de uso da aplicação.
+ *
+ * <p>Instancia cada caso de uso a partir das dependências já construídas em
+ * {@link InfrastructureConfig} e {@link RepositoryConfig}, servindo como ponto único
+ * de montagem consumido pela camada de apresentação.
+ */
 public class UseCaseConfig {
 
     private final IsbnLookupUseCase  isbnLookup;
@@ -35,10 +42,21 @@ public class UseCaseConfig {
         this.acervoStats = new AcervoStatsUseCase(repos.livroRepository(), repos.unitOfWork());
     }
 
+    /** @return caso de uso de busca de livro por ISBN na OpenLibrary */
     public IsbnLookupUseCase  isbnLookup()      { return isbnLookup; }
+
+    /** @return caso de uso de criação, atualização e exclusão de livros */
     public BookCrudUseCase    bookCrud()         { return bookCrud; }
+
+    /** @return caso de uso de busca e listagem paginada de livros */
     public BookSearchUseCase  bookSearch()       { return bookSearch; }
+
+    /** @return caso de uso de exportação do acervo em CSV */
     public BookExportUseCase  bookExport()       { return bookExport; }
+
+    /** @return caso de uso de importação em lote via CSV/XML */
     public ImportUseCase      importUseCase()    { return importUseCase; }
+
+    /** @return caso de uso de estatísticas do acervo */
     public AcervoStatsUseCase acervoStats()      { return acervoStats; }
 }

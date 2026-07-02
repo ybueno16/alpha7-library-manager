@@ -29,6 +29,17 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
+/**
+ * Presenter responsável pela lógica da tela de listagem de livros.
+ *
+ * <p>Orquestra busca paginada, filtros, criação, edição, exclusão, importação e
+ * exportação, delegando toda a lógica de negócio aos casos de uso e mantendo a
+ * {@link LivroListView} "burra" — a view apenas exibe dados e repassa eventos de
+ * usuário via callbacks registrados em {@link #registerCallbacks()}.
+ *
+ * <p>Operações que acessam o banco ou o sistema de arquivos (busca, exclusão, importação
+ * e exportação) rodam em {@link javax.swing.SwingWorker} para não bloquear a EDT.
+ */
 public class LivroListPresenter {
 
     static final int PAGE_SIZE = 50;
@@ -60,6 +71,10 @@ public class LivroListPresenter {
         registerCallbacks();
     }
 
+    /**
+     * Recarrega as opções de filtro e a primeira página do acervo.
+     * Chamado ao abrir a tela e após operações que alteram o acervo (salvar, excluir, importar).
+     */
     public void loadLivros() {
         currentPage = 0;
         loadFilterOptions();

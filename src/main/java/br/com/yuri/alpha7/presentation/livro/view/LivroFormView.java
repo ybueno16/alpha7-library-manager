@@ -34,7 +34,7 @@ public interface LivroFormView extends View {
     String getIsbn();
 
     /**
-     * Retorna os nomes de autores digitados, separados por vírgula.
+     * Retorna os nomes de autores digitados, separados por ponto-e-vírgula.
      *
      * @return texto do campo autores, nunca nulo
      */
@@ -166,4 +166,3 @@ public interface LivroFormView extends View {
      */
     void onRemoveSemelhante(Runnable acao);
 }
-

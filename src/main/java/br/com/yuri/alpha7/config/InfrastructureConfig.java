@@ -13,6 +13,14 @@ import okhttp3.OkHttpClient;
 import javax.cache.Cache;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Wiring manual da infraestrutura externa da aplicação.
+ *
+ * <p>Constrói o {@link OkHttpClient} usado nas chamadas HTTP, o cache JCache de consultas
+ * ISBN e o {@link OpenLibraryClient} exposto à aplicação — decorado com
+ * {@link br.com.yuri.alpha7.infra.client.openlibrary.CachingOpenLibraryClient} para evitar
+ * requisições repetidas à API pública da OpenLibrary.
+ */
 public class InfrastructureConfig {
 
     private final OkHttpClient httpClient;
@@ -39,10 +47,16 @@ public class InfrastructureConfig {
         this.openLibraryClient = new CachingOpenLibraryClient(openLibraryClientImpl, cache);
     }
 
+    /**
+     * Retorna o cliente OpenLibrary decorado com cache, usado pela camada de aplicação.
+     *
+     * @return instância única do cliente OpenLibrary
+     */
     public OpenLibraryClient openLibraryClient() {
         return openLibraryClient;
     }
 
+    /** Libera as conexões HTTP e encerra o gerenciador de cache. */
     public void shutdown() {
         httpClient.dispatcher().executorService().shutdown();
         httpClient.connectionPool().evictAll();

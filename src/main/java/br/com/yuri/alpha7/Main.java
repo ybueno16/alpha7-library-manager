@@ -11,8 +11,22 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 
+/**
+ * Ponto de entrada da aplicação desktop.
+ *
+ * <p>Exibe a splash screen imediatamente e realiza o wiring de infraestrutura,
+ * repositórios e casos de uso em um {@link SwingWorker}, para que a inicialização
+ * do banco de dados e do cache não bloqueie a EDT. A janela principal só é exibida
+ * após o wiring terminar; falhas de inicialização são reportadas ao usuário e encerram
+ * a aplicação liberando os recursos já alocados.
+ */
 public class Main {
 
+    /**
+     * Inicializa o Look and Feel, exibe a splash screen e monta a aplicação em background.
+     *
+     * @param args argumentos de linha de comando (não utilizados)
+     */
     public static void main(String[] args) {
         FlatDarkLaf.setup();
 
