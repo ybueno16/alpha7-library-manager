@@ -30,13 +30,22 @@ import java.util.function.Function;
  */
 public abstract class BaseRepository {
 
+    /**
+     * Executa uma ação de escrita dentro de uma transação, reaproveitando o {@link EntityManager}
+     * de um {@link HibernateUnitOfWork} ativo, ou abrindo e gerenciando um próprio no modo autônomo.
+     * Violações de constraint são traduzidas para exceções de domínio (ver classe).
+     *
+     * @param action ação a executar, recebendo o {@link EntityManager} da transação
+     * @return resultado produzido pela ação
+     * @throws LibraryException se a conexão falhar ou a ação não puder ser concluída
+     */
     protected <T> T executeInTransaction(Function<EntityManager, T> action){
         Optional<EntityManager> currentEm = HibernateUnitOfWork.getCurrentEntityManager();
         if (currentEm.isPresent()) {
             return action.apply(currentEm.get());
         }
 
-        EntityManager entityManager = HibernateUtil.openEntityManager();
+        EntityManager entityManager = openEntityManager();
         try {
             entityManager.getTransaction().begin();
             T result = action.apply(entityManager);
@@ -59,17 +68,41 @@ public abstract class BaseRepository {
             entityManager.close();
         }
     }
+    /**
+     * Executa uma ação de leitura, reaproveitando o {@link EntityManager} de um
+     * {@link HibernateUnitOfWork} ativo, ou abrindo e fechando um próprio sem transação explícita.
+     *
+     * @param action ação a executar, recebendo o {@link EntityManager} da consulta
+     * @return resultado produzido pela ação
+     * @throws LibraryException se a conexão com o banco falhar
+     */
     protected <T> T executeQuery(Function<EntityManager, T> action) {
         Optional<EntityManager> currentEm = HibernateUnitOfWork.getCurrentEntityManager();
         if (currentEm.isPresent()) {
             return action.apply(currentEm.get());
         }
 
-        EntityManager entityManager = HibernateUtil.openEntityManager();
+        EntityManager entityManager = openEntityManager();
         try {
             return action.apply(entityManager);
         } finally {
             entityManager.close();
+        }
+    }
+
+    /**
+     * Abre um novo {@link EntityManager}, traduzindo qualquer falha de conexão ou de migração
+     * do Flyway (na primeira chamada) em uma mensagem amigável em vez do erro técnico cru.
+     *
+     * @return novo {@link EntityManager}
+     * @throws LibraryException se não for possível conectar ao banco de dados
+     */
+    private EntityManager openEntityManager() {
+        try {
+            return HibernateUtil.openEntityManager();
+        } catch (Exception e) {
+            throw new LibraryException(
+                    "Não foi possível conectar ao banco de dados. Verifique se ele está disponível.", e);
         }
     }
 }

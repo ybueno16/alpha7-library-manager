@@ -48,6 +48,13 @@ public class HibernateUnitOfWork implements UnitOfWork {
         return inTransaction(action);
     }
 
+    /**
+     * Percorre a cadeia de causas de uma exceção em busca de uma violação de constraint
+     * do Hibernate, já que ela costuma vir encapsulada dentro de outras exceções de runtime.
+     *
+     * @param t exceção capturada durante a transação
+     * @return a {@link ConstraintViolationException} encontrada na cadeia, ou {@code null} se nenhuma
+     */
     static ConstraintViolationException unwrapConstraintViolation(Throwable t) {
         Throwable cause = t;
         while (cause != null) {
@@ -59,12 +66,26 @@ public class HibernateUnitOfWork implements UnitOfWork {
         return null;
     }
 
+    /**
+     * Retorna o {@link EntityManager} da transação em andamento na thread atual, se houver.
+     * Consultado pelos repositórios para participar da mesma transação em vez de abrir uma nova.
+     *
+     * @return o {@link EntityManager} ativo nesta thread, ou vazio se nenhuma transação estiver em curso
+     */
     public static Optional<EntityManager> getCurrentEntityManager() {
         return Optional.ofNullable(context.get());
     }
 
+    /**
+     * Abre uma transação, executa a ação, propaga o {@link EntityManager} via {@link ThreadLocal}
+     * e garante commit/rollback e limpeza do contexto ao final, independentemente do resultado.
+     *
+     * @param action operação a ser executada dentro da transação
+     * @return resultado produzido pela ação
+     * @throws LibraryException se a ação falhar por qualquer motivo (a causa original é preservada)
+     */
     private <T> T inTransaction(Supplier<T> action) {
-        EntityManager em = HibernateUtil.openEntityManager();
+        EntityManager em = openEntityManager();
         context.set(em);
         try {
             logger.debug("Iniciando transação");
@@ -92,6 +113,22 @@ public class HibernateUnitOfWork implements UnitOfWork {
         } finally {
             context.remove();
             em.close();
+        }
+    }
+
+    /**
+     * Abre um novo {@link EntityManager}, traduzindo qualquer falha de conexão ou de migração
+     * do Flyway (na primeira chamada) em uma mensagem amigável em vez do erro técnico cru.
+     *
+     * @return novo {@link EntityManager} pronto para iniciar a transação
+     * @throws LibraryException se não for possível conectar ao banco de dados
+     */
+    private EntityManager openEntityManager() {
+        try {
+            return HibernateUtil.openEntityManager();
+        } catch (Exception e) {
+            throw new LibraryException(
+                    "Não foi possível conectar ao banco de dados. Verifique se ele está disponível.", e);
         }
     }
 }
