@@ -80,6 +80,11 @@ public final class HibernateUtil {
         logger.info("Pool HikariCP e EntityManagerFactory encerrados");
     }
 
+    /**
+     * Constrói o pool de conexões, roda as migrations pendentes e monta o {@link EntityManagerFactory},
+     * nessa ordem — o pool precisa existir antes do Flyway rodar, e o schema precisa estar
+     * atualizado antes do Hibernate validar as entidades contra o banco.
+     */
     private static void initialize() {
         dataSource = buildDataSource();
         runMigrations();
@@ -87,6 +92,13 @@ public final class HibernateUtil {
         logger.info("Hibernate pronto: persistence unit '{}', pool '{}'", PERSISTENCE_UNIT, dataSource.getPoolName());
     }
 
+    /**
+     * Cria o pool de conexões HikariCP a partir das system properties {@code db.url},
+     * {@code db.user} e {@code db.password}, ou dos valores padrão do Docker Compose local
+     * quando não informadas.
+     *
+     * @return pool de conexões pronto para uso
+     */
     private static HikariDataSource buildDataSource() {
         String jdbcUrl = System.getProperty("db.url",      DEFAULT_JDBC_URL);
         String dbUser  = System.getProperty("db.user",     DEFAULT_DB_USER);
@@ -107,6 +119,10 @@ public final class HibernateUtil {
         return new HikariDataSource(config);
     }
 
+    /**
+     * Aplica as migrations Flyway pendentes em {@code classpath:db/migration} contra o pool
+     * já criado. É a primeira operação a efetivamente conectar no banco.
+     */
     private static void runMigrations() {
         logger.info("Flyway: verificando migrations em '{}'", dataSource.getJdbcUrl());
         Flyway.configure()
@@ -117,6 +133,14 @@ public final class HibernateUtil {
         logger.info("Flyway: schema atualizado");
     }
 
+    /**
+     * Monta o {@link EntityManagerFactory} usando o pool já criado como fonte de conexões,
+     * habilitando o cache L2 do Hibernate via {@code ehcache.xml} quando o arquivo estiver
+     * disponível no classpath.
+     *
+     * @return fábrica de {@link EntityManager} configurada
+     * @throws RuntimeException se a persistence unit não puder ser inicializada
+     */
     private static EntityManagerFactory buildEntityManagerFactory() {
         try {
             Map<String, Object> props = new HashMap<>();

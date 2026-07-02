@@ -94,6 +94,14 @@ public class BookCrudUseCase {
         livroRepository.delete(id);
     }
 
+    /**
+     * Verifica se o ISBN encontrado pertence a um livro diferente do que está sendo salvo —
+     * um id nulo indica criação, então qualquer ISBN já existente é conflito.
+     *
+     * @param newId      id do livro sendo salvo, ou {@code null} se for uma criação
+     * @param existingId id do livro dono do ISBN encontrado no acervo
+     * @return {@code true} se o ISBN já pertence a outro livro
+     */
     private boolean isIsbnFromDifferentBook(Long newId, Long existingId) {
         return newId == null || !newId.equals(existingId);
     }

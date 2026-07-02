@@ -77,6 +77,13 @@ public class AcervoStatsUseCase {
         return fresh;
     }
 
+    /**
+     * Substitui valores nulos ou em branco por um rótulo padrão, usado para agrupar livros
+     * sem idioma ou editora numa categoria visível em vez de aparecerem como chave nula.
+     *
+     * @param valor valor original do agrupamento, possivelmente nulo ou vazio
+     * @return o próprio valor sem espaços nas bordas, ou {@code "Não informado"} se estiver vazio
+     */
     private String valorOuNaoInformado(String valor) {
         if (valor == null || valor.trim().isEmpty()) {
             return "Não informado";

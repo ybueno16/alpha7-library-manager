@@ -99,6 +99,12 @@ public class OpenLibraryClientImpl implements OpenLibraryClient {
         }
     }
 
+    /**
+     * Busca os dados de cada autor referenciado pelo livro, um por vez.
+     *
+     * @param authorRefs referências de autor retornadas pela busca do livro
+     * @return respostas resolvidas com sucesso; referências que falharem são omitidas
+     */
     private List<OpenLibraryAuthorResponse> resolveAuthors(List<OpenLibraryBookResponse.AuthorRef> authorRefs) {
         List<OpenLibraryAuthorResponse> authors = new ArrayList<>();
         for (OpenLibraryBookResponse.AuthorRef ref : authorRefs) {
@@ -107,6 +113,14 @@ public class OpenLibraryClientImpl implements OpenLibraryClient {
         return authors;
     }
 
+    /**
+     * Busca os dados de um único autor pela chave retornada na resposta do livro.
+     * Falhas (HTTP não-2xx ou erro de I/O) são registradas em log e ignoradas silenciosamente,
+     * para que a ausência de um autor não impeça o retorno do livro (ver Javadoc da classe).
+     *
+     * @param authorKey chave do autor no formato {@code /authors/OL...A}, ou {@code null}
+     * @return dados do autor, ou vazio se a chave for nula ou a busca falhar
+     */
     private Optional<OpenLibraryAuthorResponse> fetchAuthor(String authorKey) {
         if (authorKey == null) {
             return Optional.empty();
@@ -131,15 +145,34 @@ public class OpenLibraryClientImpl implements OpenLibraryClient {
         }
     }
 
+    /**
+     * Lê o corpo da resposta HTTP como texto.
+     *
+     * @param response resposta HTTP já validada como bem-sucedida
+     * @return corpo da resposta, ou string vazia se o corpo for nulo
+     * @throws IOException se a leitura do corpo falhar
+     */
     private String readBody(Response response) throws IOException {
         ResponseBody body = response.body();
         return body == null ? "" : body.string();
     }
 
+    /**
+     * Monta a URL do endpoint de busca de livro por ISBN.
+     *
+     * @param isbn ISBN a consultar
+     * @return URL completa do endpoint {@code /isbn/{isbn}.json}
+     */
     private String buildIsbnUrl(ISBN isbn) {
         return baseUrl + String.format(ISBN_ENDPOINT, isbn.getValue());
     }
 
+    /**
+     * Monta a URL do endpoint de busca de autor.
+     *
+     * @param authorId identificador do autor extraído da referência do livro
+     * @return URL completa do endpoint {@code /authors/{id}.json}
+     */
     private String buildAuthorUrl(String authorId) {
         return baseUrl + String.format(AUTHOR_ENDPOINT, authorId);
     }

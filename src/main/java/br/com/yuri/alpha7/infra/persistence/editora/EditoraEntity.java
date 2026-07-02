@@ -10,9 +10,9 @@ import javax.persistence.*;
  * Entidade JPA que representa uma editora na tabela {@code editora}.
  *
  * <p>Editoras são compartilhadas entre livros: quando um livro é salvo com um nome de editora
- * já cadastrado, a referência existente é reaproveitada pelo {@link br.com.yuri.alpha7.application.editora.EditoraUseCase}.
- * O cache de segundo nível ({@code READ_WRITE}) reduz as consultas de lookup repetitivo durante
- * importações em lote.
+ * já cadastrado, a referência existente é reaproveitada por {@link br.com.yuri.alpha7.application.livro.BookCrudUseCase}
+ * e {@link br.com.yuri.alpha7.application.importacao.ImportUseCase}. O cache de segundo nível
+ * ({@code READ_WRITE}) reduz as consultas de lookup repetitivo durante importações em lote.
  */
 @Entity(name = "Editora")
 @Table(name = "editora")

@@ -52,6 +52,16 @@ public class OpenLibraryBookMapper {
             DateTimeFormatter.ISO_LOCAL_DATE
     };
 
+    /**
+     * Converte a resposta da OpenLibrary (já com os autores resolvidos) para um {@link Livro}
+     * de domínio. Campos que não puderem ser interpretados (data em formato desconhecido,
+     * idioma ou editora ausentes) são simplesmente deixados de fora do livro resultante.
+     *
+     * @param response resposta do endpoint {@code /isbn/{isbn}.json}
+     * @param authors  respostas já resolvidas do endpoint {@code /authors/{id}.json}
+     * @param isbn     ISBN consultado, atribuído diretamente ao livro
+     * @return livro preenchido com os dados disponíveis
+     */
     public Livro toLivro(OpenLibraryBookResponse response, List<OpenLibraryAuthorResponse> authors, ISBN isbn) {
         Livro livro = new Livro();
         livro.setIsbn(isbn);
@@ -66,6 +76,13 @@ public class OpenLibraryBookMapper {
         return livro;
     }
 
+    /**
+     * Converte as respostas de autor em objetos de domínio, ignorando entradas sem nome
+     * (a OpenLibrary pode retornar referências que não resolveram para um nome válido).
+     *
+     * @param authorResponses respostas já resolvidas do endpoint de autores
+     * @return autores convertidos, na mesma ordem em que foram resolvidos
+     */
     private List<Autor> toAutores(List<OpenLibraryAuthorResponse> authorResponses) {
         List<Autor> autores = new ArrayList<>();
         for (OpenLibraryAuthorResponse response : authorResponses) {
@@ -79,6 +96,14 @@ public class OpenLibraryBookMapper {
         return autores;
     }
 
+    /**
+     * Tenta interpretar a data de publicação nos formatos conhecidos da OpenLibrary, em ordem:
+     * data completa ({@link #PUBLISH_DATE_FORMATS}), mês e ano ({@link #PUBLISH_MONTH_YEAR_FORMATS},
+     * assumindo o dia 1), e por fim ano isolado (assumindo 1º de janeiro).
+     *
+     * @param rawDate valor bruto do campo {@code publish_date}, possivelmente nulo ou vazio
+     * @return data interpretada, ou vazio se nenhum formato conhecido coincidir
+     */
     private Optional<LocalDate> parsePublishDate(String rawDate) {
         if (rawDate == null || rawDate.trim().isEmpty()) {
             return Optional.empty();
@@ -110,6 +135,13 @@ public class OpenLibraryBookMapper {
         return Optional.empty();
     }
 
+    /**
+     * Tenta interpretar uma data de nascimento ou falecimento de autor nos formatos conhecidos
+     * da OpenLibrary ({@link #AUTHOR_DATE_FORMATS}), em ordem.
+     *
+     * @param rawDate valor bruto do campo de data, possivelmente nulo ou vazio
+     * @return data interpretada, ou vazio se nenhum formato conhecido coincidir
+     */
     private Optional<LocalDate> parseAuthorDate(String rawDate) {
         if (rawDate == null || rawDate.trim().isEmpty()) {
             return Optional.empty();
@@ -124,6 +156,13 @@ public class OpenLibraryBookMapper {
         return Optional.empty();
     }
 
+    /**
+     * Extrai o texto da bio do autor, que a OpenLibrary retorna ora como string simples,
+     * ora como objeto JSON com um campo {@code value}.
+     *
+     * @param bioNode nó JSON do campo {@code bio}, possivelmente nulo
+     * @return texto da bio, ou vazio se o nó for nulo ou não contiver texto reconhecível
+     */
     private Optional<String> extractBio(JsonNode bioNode) {
         if (bioNode == null) {
             return Optional.empty();
@@ -137,6 +176,13 @@ public class OpenLibraryBookMapper {
         return Optional.empty();
     }
 
+    /**
+     * Extrai o código do idioma a partir da primeira referência da lista, cujo formato é
+     * {@code /languages/eng} — apenas a parte após a última barra é retida.
+     *
+     * @param languages referências de idioma da resposta, possivelmente nula ou vazia
+     * @return código do idioma (ex: {@code "eng"}), ou vazio se não houver referência válida
+     */
     private Optional<String> extractLanguage(List<OpenLibraryBookResponse.LanguageRef> languages) {
         if (languages == null || languages.isEmpty()) {
             return Optional.empty();

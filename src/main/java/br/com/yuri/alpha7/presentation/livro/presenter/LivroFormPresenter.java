@@ -64,16 +64,27 @@ public class LivroFormPresenter {
         view.onRemoveSemelhante(this::removeSemelhante);
     }
 
+    /** Prepara o presenter para o modo de criação: nenhum id é mantido internamente. */
     public void initCreate() {
         this.livroId = null;
     }
 
+    /**
+     * Prepara o presenter para o modo de edição: guarda o id do livro para que o salvamento
+     * faça update em vez de insert, e preenche a view com os dados atuais.
+     *
+     * @param livro livro a ser editado, já carregado com autores e semelhantes
+     */
     public void initEdit(Livro livro) {
         this.livroId = livro.getId();
         view.setLivro(livro);
         view.setLivrosSemelhantes(livro.getLivrosSemelhantes());
     }
 
+    /**
+     * Valida o ISBN digitado e dispara a busca na OpenLibrary em background, desabilitando
+     * o botão de busca durante a requisição para evitar chamadas duplicadas.
+     */
     private void lookupByIsbn() {
         String isbnStr = view.getIsbn();
         if (isbnStr.isEmpty()) {
@@ -116,6 +127,10 @@ public class LivroFormPresenter {
         }.execute();
     }
 
+    /**
+     * Carrega em background todos os livros do acervo, exclui o próprio livro e os já
+     * adicionados como semelhantes, e deixa o usuário escolher um entre os restantes.
+     */
     private void addSemelhante() {
         new SwingWorker<List<Livro>, Void>() {
             @Override
@@ -147,6 +162,7 @@ public class LivroFormPresenter {
         }.execute();
     }
 
+    /** Remove o livro semelhante atualmente selecionado na lista da view, se houver. */
     private void removeSemelhante() {
         view.getSelectedSemelhante().ifPresent(semelhante -> {
             List<Livro> atuais = new ArrayList<>(view.getLivrosSemelhantes());
@@ -155,6 +171,10 @@ public class LivroFormPresenter {
         });
     }
 
+    /**
+     * Valida o formulário e, se válido, monta o livro e delega o salvamento ao
+     * {@link BookCrudUseCase}, fechando a view em caso de sucesso.
+     */
     private void save() {
         if (!validate()) return;
         try {
@@ -167,6 +187,13 @@ public class LivroFormPresenter {
         }
     }
 
+    /**
+     * Valida os campos obrigatórios do formulário (título, ISBN, autor, ano de publicação
+     * se informado, número de páginas se informado), exibindo a primeira mensagem de erro
+     * encontrada na view.
+     *
+     * @return {@code true} se todos os campos forem válidos
+     */
     private boolean validate() {
         view.clearValidationError();
 
@@ -223,6 +250,12 @@ public class LivroFormPresenter {
         return true;
     }
 
+    /**
+     * Constrói o livro a partir dos valores já validados da view. Em modo de edição,
+     * atribui o id preservado por {@link #initEdit(Livro)} para que o repositório faça update.
+     *
+     * @return livro pronto para ser salvo
+     */
     private Livro buildLivro() {
         Livro livro = new Livro();
 
@@ -253,10 +286,23 @@ public class LivroFormPresenter {
         return livro;
     }
 
+    /**
+     * Converte o ano digitado (já validado por {@link #validate()}) para uma data, sempre
+     * usando 1º de janeiro — o formulário só aceita o ano, não o dia e mês exatos.
+     *
+     * @param dateStr ano em texto, no formato {@code yyyy}
+     * @return data equivalente ao primeiro dia do ano informado
+     */
     private LocalDate parsePublishDate(String dateStr) {
         return LocalDate.of(Integer.parseInt(dateStr), 1, 1);
     }
 
+    /**
+     * Separa o texto de autores por {@code ;}, removendo espaços e entradas vazias.
+     *
+     * @param autoresStr texto com nomes de autores separados por {@code ;}
+     * @return autores convertidos, na mesma ordem em que aparecem no texto
+     */
     private List<Autor> parseAutores(String autoresStr) {
         return Arrays.stream(autoresStr.split(";"))
                 .map(String::trim)

@@ -12,8 +12,9 @@ import java.util.stream.Collectors;
 /**
  * Implementação JPA do {@link EditoraRepository} usando Hibernate/JPA via {@link br.com.yuri.alpha7.infra.persistence.BaseRepository}.
  *
- * <p>A operação mais utilizada em produção é {@link #findByNome(String)}, chamada pelo
- * {@link br.com.yuri.alpha7.application.editora.EditoraUseCase} antes de cada salvamento de livro
+ * <p>A operação mais utilizada em produção é {@link #findByNome(String)}, chamada por
+ * {@link br.com.yuri.alpha7.application.livro.BookCrudUseCase} e
+ * {@link br.com.yuri.alpha7.application.importacao.ImportUseCase} antes de cada salvamento de livro
  * para evitar duplicatas de editora com o mesmo nome. A exclusão segue o padrão de soft delete
  * idêntico ao {@link br.com.yuri.alpha7.infra.persistence.autor.AutorRepositoryImpl}.
  */

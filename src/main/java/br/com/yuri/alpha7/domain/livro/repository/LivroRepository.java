@@ -45,14 +45,44 @@ public interface LivroRepository {
      */
     Optional<Livro> findByIsbnIncludingDeleted(ISBN isbn);
 
+    /**
+     * Retorna todos os livros ativos, sem paginação.
+     *
+     * @return lista completa de livros
+     */
     List<Livro> findAll();
 
+    /**
+     * Retorna uma página de livros ativos.
+     *
+     * @param page     número da página, começando em zero
+     * @param pageSize quantidade de itens por página
+     * @return página de livros correspondente
+     */
     PagedResult<Livro> findAll(int page, int pageSize);
 
+    /**
+     * Retorna uma página de livros ativos que atendem aos filtros informados.
+     *
+     * @param filtro   critérios de busca combinados
+     * @param page     número da página, começando em zero
+     * @param pageSize quantidade de itens por página
+     * @return página de livros que atendem ao filtro
+     */
     PagedResult<Livro> findByFiltro(LivroFiltro filtro, int page, int pageSize);
 
+    /**
+     * Retorna os nomes distintos de editoras com ao menos um livro ativo.
+     *
+     * @return lista de nomes de editoras
+     */
     List<String> findAllEditorasAtivas();
 
+    /**
+     * Retorna os idiomas distintos usados por livros ativos.
+     *
+     * @return lista de idiomas
+     */
     List<String> findAllIdiomasDistintos();
 
     /**

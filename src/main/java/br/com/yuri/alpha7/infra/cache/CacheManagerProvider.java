@@ -32,6 +32,12 @@ public class CacheManagerProvider {
     private CacheManagerProvider() {
     }
 
+    /**
+     * Retorna o {@link CacheManager} do cache de ISBN, inicializando-o na primeira chamada
+     * (thread-safe via double-checked locking).
+     *
+     * @return instância única do {@link CacheManager}
+     */
     public static CacheManager getCacheManager() {
         if (cacheManager == null) {
             synchronized (CacheManagerProvider.class) {
@@ -43,6 +49,7 @@ public class CacheManagerProvider {
         return cacheManager;
     }
 
+    /** Fecha o {@link CacheManager} e libera os recursos do provider Ehcache. */
     public static synchronized void shutdown() {
         if (cacheManager != null && !cacheManager.isClosed()) {
             cacheManager.close();
@@ -51,6 +58,12 @@ public class CacheManagerProvider {
         logger.info("Cache de ISBN encerrado");
     }
 
+    /**
+     * Carrega {@code ehcache-isbn-cache.xml} do classpath e cria o {@link CacheManager}.
+     *
+     * @return {@link CacheManager} configurado
+     * @throws RuntimeException se o arquivo de configuração não for encontrado ou for inválido
+     */
     private static CacheManager initialize() {
         try {
             ClassLoader classLoader = CacheManagerProvider.class.getClassLoader();

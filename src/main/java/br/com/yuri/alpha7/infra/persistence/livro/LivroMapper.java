@@ -27,6 +27,14 @@ public class LivroMapper {
 
     private LivroMapper() {}
 
+    /**
+     * Converte a entidade para domínio, sem carregar livros semelhantes
+     * (ver {@link #toDomainWithSemelhantes(LivroEntity)} para incluí-los).
+     * Deve ser chamado dentro de uma sessão Hibernate aberta (ver Javadoc da classe).
+     *
+     * @param entity entidade a converter, ou {@code null}
+     * @return livro de domínio correspondente, ou {@code null} se {@code entity} for {@code null}
+     */
     public static Livro toDomain(LivroEntity entity) {
         if (entity == null) {
             return null;
@@ -63,6 +71,13 @@ public class LivroMapper {
         return livro;
     }
 
+    /**
+     * Converte o domínio para entidade JPA, incluindo a conversão recursiva de editora,
+     * autores e livros semelhantes.
+     *
+     * @param livro objeto de domínio a converter, ou {@code null}
+     * @return entidade JPA correspondente, ou {@code null} se {@code livro} for {@code null}
+     */
     public static LivroEntity toEntity(Livro livro) {
         if (livro == null) {
             return null;

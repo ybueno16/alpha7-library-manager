@@ -27,8 +27,9 @@ import java.util.stream.Collectors;
  *   <li>{@link #save(br.com.yuri.alpha7.domain.livro.model.Livro)} resolve os livros semelhantes
  *       via {@code em.getReference} para evitar carregar as entidades completas, já que só a
  *       referência de chave estrangeira é necessária para persistir o relacionamento.</li>
- *   <li>{@link #findAll()} e {@link #findByFiltro(String)} usam {@code LEFT JOIN FETCH} para
- *       carregar editora e autores em uma única query e evitar o problema N+1.</li>
+ *   <li>{@link #findAll()} e {@link #findByFiltro(br.com.yuri.alpha7.domain.livro.repository.LivroFiltro, int, int)}
+ *       usam {@code LEFT JOIN FETCH} para carregar editora e autores em uma única query e evitar
+ *       o problema N+1.</li>
  *   <li>{@link #findByIsbn(ISBN)} exclui registros com soft delete; {@link #findByIsbnIncludingDeleted(ISBN)}
  *       ignora o filtro, usado durante a importação para detectar e restaurar livros deletados.</li>
  *   <li>A exclusão é soft delete via JPQL {@code SET l.deletedAt = CURRENT_TIMESTAMP}.</li>
@@ -200,6 +201,13 @@ public class LivroRepositoryImpl extends BaseRepository implements LivroReposito
                         .getResultList());
     }
 
+    /**
+     * Monta as condições JPQL correspondentes aos campos preenchidos do filtro.
+     * Sempre inclui a exclusão de registros com soft delete.
+     *
+     * @param filtro critérios de busca combinados
+     * @return condições a concatenar com {@code AND} na cláusula {@code WHERE}
+     */
     private List<String> buildConditions(LivroFiltro filtro) {
         List<String> conds = new ArrayList<>();
         conds.add("l.deletedAt IS NULL");
@@ -229,6 +237,13 @@ public class LivroRepositoryImpl extends BaseRepository implements LivroReposito
         return conds;
     }
 
+    /**
+     * Define os bind parameters correspondentes às condições geradas por {@link #buildConditions}.
+     * Valores de texto são escapados via {@link #escape} e envolvidos em {@code %} para {@code LIKE}.
+     *
+     * @param q      query já montada com os placeholders nomeados
+     * @param filtro critérios de busca combinados
+     */
     private void applyParams(Query q, LivroFiltro filtro) {
         if (hasText(filtro.getTermo()))
             q.setParameter("termo", "%" + escape(filtro.getTermo()) + "%");
@@ -244,10 +259,24 @@ public class LivroRepositoryImpl extends BaseRepository implements LivroReposito
             q.setParameter("idioma", filtro.getIdioma());
     }
 
+    /**
+     * Escapa os caracteres especiais de {@code LIKE} ({@code !}, {@code %}, {@code _}) usando
+     * {@code !} como caractere de escape, para que termos de busca contendo esses caracteres
+     * não alterem o padrão da consulta.
+     *
+     * @param value texto informado pelo usuário
+     * @return texto com os caracteres especiais de {@code LIKE} escapados
+     */
     private static String escape(String value) {
         return value.replace("!", "!!").replace("%", "!%").replace("_", "!_");
     }
 
+    /**
+     * Verifica se o texto informado é não nulo e contém algum caractere além de espaços.
+     *
+     * @param s texto a verificar
+     * @return {@code true} se o texto tiver conteúdo útil
+     */
     private static boolean hasText(String s) {
         return s != null && !s.trim().isEmpty();
     }

@@ -81,6 +81,13 @@ public class XmlImportParser implements ImportParser {
         }
     }
 
+    /**
+     * Extrai o texto do primeiro elemento filho com a tag informada.
+     *
+     * @param el  elemento {@code <livro>} sendo lido
+     * @param tag nome da tag filha a buscar
+     * @return texto do elemento, sem espaços nas bordas, ou string vazia se a tag não existir
+     */
     private String text(Element el, String tag) {
         NodeList nodes = el.getElementsByTagName(tag);
         if (nodes.getLength() == 0) {

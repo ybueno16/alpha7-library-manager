@@ -81,6 +81,7 @@ public class LivroListPresenter {
         loadPage();
     }
 
+    /** Liga cada evento exposto pela view à ação correspondente do presenter. */
     private void registerCallbacks() {
         view.onSearch(this::search);
         view.onDelete(this::delete);
@@ -92,21 +93,28 @@ public class LivroListPresenter {
         view.onPreviousPage(this::previousPage);
     }
 
+    /** Volta para a primeira página e recarrega com os filtros atuais da view. */
     private void search() {
         currentPage = 0;
         loadPage();
     }
 
+    /** Avança para a próxima página e recarrega. */
     private void nextPage() {
         currentPage++;
         loadPage();
     }
 
+    /** Volta para a página anterior, se houver, e recarrega. */
     private void previousPage() {
         if (currentPage > 0) currentPage--;
         loadPage();
     }
 
+    /**
+     * Busca a página atual (com ou sem filtro) em background e atualiza a tabela
+     * e as informações de paginação da view ao concluir.
+     */
     private void loadPage() {
         final int page = currentPage;
         final LivroFiltro filtro = buildFiltro();
@@ -135,6 +143,11 @@ public class LivroListPresenter {
         }.execute();
     }
 
+    /**
+     * Monta o filtro de busca a partir dos campos atualmente preenchidos na view.
+     *
+     * @return filtro com os critérios normalizados (texto sem espaços, anos convertidos)
+     */
     private LivroFiltro buildFiltro() {
         return new LivroFiltro(
                 trim(view.getSearchTerm()),
@@ -146,6 +159,11 @@ public class LivroListPresenter {
         );
     }
 
+    /**
+     * Carrega em background os valores distintos de editora e idioma usados para
+     * popular os combos de filtro da view. Falhas são ignoradas — os combos simplesmente
+     * não são atualizados, sem impedir o uso do restante da tela.
+     */
     private void loadFilterOptions() {
         new SwingWorker<List<List<String>>, Void>() {
             @Override
@@ -168,10 +186,23 @@ public class LivroListPresenter {
         }.execute();
     }
 
+    /**
+     * Remove espaços nas bordas, tratando {@code null} como texto vazio.
+     *
+     * @param s texto a normalizar, possivelmente nulo
+     * @return texto sem espaços nas bordas, nunca nulo
+     */
     private static String trim(String s) {
         return s != null ? s.trim() : "";
     }
 
+    /**
+     * Converte o texto do campo de ano para inteiro, tratando entrada vazia ou não numérica
+     * como ausência de filtro em vez de erro de validação.
+     *
+     * @param s texto digitado no campo de ano
+     * @return ano convertido, ou {@code null} se vazio ou não numérico
+     */
     private static Integer parseYear(String s) {
         if (s == null || s.trim().isEmpty()) {
             return null;
@@ -183,6 +214,10 @@ public class LivroListPresenter {
         }
     }
 
+    /**
+     * Exclui os livros selecionados após confirmação do usuário, um a um, informando
+     * quais falharam sem interromper a exclusão dos demais.
+     */
     private void delete() {
         List<Livro> selected = view.getSelectedLivros();
         if (selected.isEmpty()) {
@@ -224,6 +259,11 @@ public class LivroListPresenter {
         }.execute();
     }
 
+    /**
+     * Conduz o fluxo completo de importação: escolhe o arquivo, gera o preview em background,
+     * exibe o diálogo de confirmação e, se confirmado, importa os registros selecionados
+     * com barra de progresso, recarregando a lista ao final.
+     */
     private void importFile() {
         JFileChooser chooser = new JFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter("Arquivos de importação (CSV, XML)", "csv", "xml"));
@@ -297,6 +337,12 @@ public class LivroListPresenter {
         }.execute();
     }
 
+    /**
+     * Monta e exibe o resumo da importação: contagem de novos, ignorados e, se houver erros,
+     * a lista detalhada por linha num diálogo com área de texto rolável.
+     *
+     * @param result resultado retornado por {@link ImportUseCase#importSelected}
+     */
     private void showImportResult(ImportResult result) {
         StringBuilder sb = new StringBuilder();
         if (result.getTotalNew() > 0) {
@@ -328,6 +374,10 @@ public class LivroListPresenter {
         JOptionPane.showMessageDialog(parent, scroll, "Importação concluída com erros", JOptionPane.WARNING_MESSAGE);
     }
 
+    /**
+     * Conduz o fluxo completo de exportação: escolhe o destino, confirma sobrescrita se o
+     * arquivo já existir, e grava o CSV em UTF-8 com BOM em background, com barra de progresso.
+     */
     private void exportFile() {
         JFileChooser chooser = new JFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter("Arquivo CSV (*.csv)", "csv"));
@@ -391,6 +441,7 @@ public class LivroListPresenter {
         progressDialog.setVisible(true);
     }
 
+    /** Abre o formulário em branco para cadastrar um novo livro. */
     private void openCreateForm() {
         LivroFormDialog dialog = new LivroFormDialog(parent);
         LivroFormPresenter presenter = new LivroFormPresenter(dialog, crudUseCase, searchUseCase, isbnLookupUseCase, this::loadLivros);
@@ -398,6 +449,11 @@ public class LivroListPresenter {
         dialog.setVisible(true);
     }
 
+    /**
+     * Recarrega o livro selecionado por completo (com autores e semelhantes) em background
+     * e abre o formulário de edição. Se o livro tiver sido excluído por outra sessão nesse
+     * meio-tempo, avisa o usuário e recarrega a lista em vez de abrir o formulário.
+     */
     private void openEditForm() {
         Optional<Livro> selected = view.getSelectedLivro();
         if (!selected.isPresent()) return;

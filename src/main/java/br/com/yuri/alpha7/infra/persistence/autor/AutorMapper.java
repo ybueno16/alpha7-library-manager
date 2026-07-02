@@ -15,6 +15,12 @@ public class AutorMapper {
 
     private AutorMapper() {}
 
+    /**
+     * Converte a entidade JPA para o objeto de domínio.
+     *
+     * @param entity entidade a converter, ou {@code null}
+     * @return autor de domínio correspondente, ou {@code null} se {@code entity} for {@code null}
+     */
     public static Autor toDomain(AutorEntity entity) {
         if (entity == null) {
             return null;
@@ -27,6 +33,12 @@ public class AutorMapper {
         return autor;
     }
 
+    /**
+     * Converte o objeto de domínio para entidade JPA.
+     *
+     * @param domain autor de domínio a converter, ou {@code null}
+     * @return entidade JPA correspondente, ou {@code null} se {@code domain} for {@code null}
+     */
     public static AutorEntity toEntity(Autor domain) {
         if (domain == null) {
             return null;

@@ -46,6 +46,15 @@ public class BookExportUseCase {
         return exportToCsv(writer, null);
     }
 
+    /**
+     * Exporta todos os livros do acervo para o writer fornecido em formato CSV, notificando
+     * o progresso a cada linha escrita.
+     *
+     * @param writer     destino da escrita (pertence ao chamador — não é fechado aqui)
+     * @param onProgress callback chamado após cada linha com (linhas escritas, total); pode ser {@code null}
+     * @return quantidade de livros exportados
+     * @throws IOException em caso de erro de escrita
+     */
     public int exportToCsv(Writer writer, BiConsumer<Integer, Integer> onProgress) throws IOException {
         List<Livro> livros = livroRepository.findAll();
         int total = livros.size();

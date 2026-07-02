@@ -14,6 +14,12 @@ public class EditoraMapper {
 
     private EditoraMapper() {}
 
+    /**
+     * Converte a entidade JPA para o objeto de domínio.
+     *
+     * @param entity entidade a converter, ou {@code null}
+     * @return editora de domínio correspondente, ou {@code null} se {@code entity} for {@code null}
+     */
     public static Editora toDomain(EditoraEntity entity) {
         if (entity == null) {
             return null;
@@ -23,6 +29,12 @@ public class EditoraMapper {
         return editora;
     }
 
+    /**
+     * Converte o objeto de domínio para entidade JPA.
+     *
+     * @param domain editora de domínio a converter, ou {@code null}
+     * @return entidade JPA correspondente, ou {@code null} se {@code domain} for {@code null}
+     */
     public static EditoraEntity toEntity(Editora domain) {
         if (domain == null) {
             return null;
