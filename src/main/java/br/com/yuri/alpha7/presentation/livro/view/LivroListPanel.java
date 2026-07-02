@@ -152,7 +152,7 @@ public class LivroListPanel extends JPanel implements LivroListView {
     }
 
     private void initKeyBindings() {
-        bindKey("search", KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0),
+        bindKey("search", KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0),
                 () -> { if (searchAction != null) searchAction.run(); });
         bindKey("new", KeyStroke.getKeyStroke(KeyEvent.VK_N, InputEvent.CTRL_DOWN_MASK),
                 () -> { if (createAction != null) createAction.run(); });
