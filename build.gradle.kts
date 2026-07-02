@@ -5,7 +5,9 @@ plugins {
 }
 
 group = "br.com.yuri.alpha7"
-version = "1.0-SNAPSHOT"
+// O workflow de release sobrescreve isso via `-PreleaseVersion=X.Y.Z`, derivado da tag git
+// (ex: tag `v1.2.0` -> versão `1.2.0`), para que o JAR e o manifest reflitam a versão publicada.
+version = (findProperty("releaseVersion") as String?) ?: "1.0-SNAPSHOT"
 
 tasks.withType<JavaCompile>().configureEach {
     sourceCompatibility = "1.8"
@@ -14,6 +16,21 @@ tasks.withType<JavaCompile>().configureEach {
 
 repositories {
     mavenCentral()
+}
+
+sourceSets {
+    create("integrationTest") {
+        java.srcDir("src/integrationTest/java")
+        compileClasspath += sourceSets.main.get().output + sourceSets.test.get().output
+        runtimeClasspath += sourceSets.main.get().output + sourceSets.test.get().output
+    }
+}
+
+val integrationTestImplementation by configurations.getting {
+    extendsFrom(configurations.testImplementation.get())
+}
+val integrationTestRuntimeOnly by configurations.getting {
+    extendsFrom(configurations.testRuntimeOnly.get())
 }
 
 dependencies {
@@ -49,14 +66,26 @@ jacoco {
 
 tasks.test {
     useJUnitPlatform()
-    finalizedBy(tasks.jacocoTestReport)
+}
+
+// Kept as a separate task (not depending on / depended on by `test`) so unit and integration
+// tests can run as independent, parallel jobs in CI. Coverage from both is merged afterwards
+// by jacocoTestReport / jacocoTestCoverageVerification, which depend on both tasks below.
+val integrationTest = tasks.register<Test>("integrationTest") {
+    description = "Runs integration tests (repository and persistence tests backed by an embedded Postgres)."
+    group = "verification"
+    testClassesDirs = sourceSets["integrationTest"].output.classesDirs
+    classpath = sourceSets["integrationTest"].runtimeClasspath
+    useJUnitPlatform()
 }
 
 tasks.shadowJar {
     archiveBaseName.set("alpha7-library-manager")
+    archiveVersion.set(project.version.toString())
     archiveClassifier.set("")
     manifest {
         attributes["Main-Class"] = "br.com.yuri.alpha7.Main"
+        attributes["Implementation-Version"] = project.version.toString()
     }
 }
 
@@ -65,7 +94,10 @@ tasks.build {
 }
 
 tasks.jacocoTestReport {
-    dependsOn(tasks.test)
+    dependsOn(tasks.test, integrationTest, tasks.compileJava)
+    executionData.setFrom(fileTree(layout.buildDirectory.dir("jacoco")) {
+        include("*.exec")
+    })
     reports {
         xml.required.set(true)
         html.required.set(true)
@@ -94,7 +126,10 @@ tasks.jacocoTestReport {
 }
 
 tasks.jacocoTestCoverageVerification {
-    dependsOn(tasks.test)
+    dependsOn(tasks.test, integrationTest, tasks.compileJava)
+    executionData.setFrom(fileTree(layout.buildDirectory.dir("jacoco")) {
+        include("*.exec")
+    })
     violationRules {
         rule {
             limit {
@@ -128,4 +163,14 @@ tasks.jacocoTestCoverageVerification {
 
 tasks.check {
     dependsOn(tasks.jacocoTestCoverageVerification)
+}
+
+// Conveniência para uso local: roda unitários + integração e gera o relatório de cobertura
+// mesclado num único comando, já que os dois passaram a ser tasks independentes (para poderem
+// rodar em paralelo como jobs separados no CI).
+tasks.register("testAll") {
+    description = "Runs unit and integration tests and generates the merged coverage report."
+    group = "verification"
+    dependsOn(tasks.test, integrationTest)
+    finalizedBy(tasks.jacocoTestReport)
 }
