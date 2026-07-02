@@ -26,8 +26,11 @@ import java.util.List;
  *
  * <p>O ISBN é persistido pelo {@link br.com.yuri.alpha7.infra.persistence.converter.IsbnConverter},
  * que converte o Value Object {@link br.com.yuri.alpha7.domain.livro.vo.ISBN} para {@code String}
- * e vice-versa. A coluna possui constraint {@code UNIQUE} no banco de dados como segunda linha de defesa
- * (a primeira é a validação em {@link br.com.yuri.alpha7.application.livro.BookCrudUseCase}).
+ * e vice-versa. A unicidade do ISBN é garantida no banco por um índice único parcial
+ * ({@code uq_livro_isbn_ativo}, criado na migration {@code V7}) que só considera livros ativos —
+ * não pela anotação JPA, já que o schema é gerido por Flyway e não por geração automática do
+ * Hibernate. Essa constraint é a segunda linha de defesa (a primeira é a validação em
+ * {@link br.com.yuri.alpha7.application.livro.BookCrudUseCase}).
  */
 @Entity(name = "Livro")
 @Table(name = "livro")
@@ -41,7 +44,7 @@ public class LivroEntity extends AuditableEntity {
     @Column(nullable = false, length = 512)
     private String titulo;
 
-    @Column(nullable = false, unique = true, length = 20)
+    @Column(nullable = false, length = 20)
     private ISBN isbn;
 
     @Column(name = "data_publicacao")
