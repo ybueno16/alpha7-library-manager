@@ -494,6 +494,51 @@ class ImportUseCaseTest {
         assertTrue(result.hasErrors());
     }
 
+    @Test
+    @DisplayName(
+            "Given a CSV with two lines sharing the same ISBN in different formats," +
+            " when preview is called," +
+            " then the first line is NOVO and the second is flagged as duplicate ERRO"
+    )
+    void shouldFlagSecondOccurrenceWhenSameIsbnRepeatsInSameFile() {
+        when(livroRepository.findByIsbn(any())).thenReturn(Optional.empty());
+
+        List<ImportPreviewRecord> previews = useCase.preview(csvStream(
+                "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
+                "Clean Code,978-0-13-235088-4,Robert Martin,,,,\n" +
+                "Clean Code Duplicado,9780132350884,Robert Martin,,,,"
+        ), "test.csv");
+
+        assertEquals(2, previews.size());
+        assertEquals(ImportPreviewRecord.Status.NOVO, previews.get(0).getStatus());
+        assertEquals(ImportPreviewRecord.Status.ERRO, previews.get(1).getStatus());
+        assertTrue(previews.get(1).getMensagem().toLowerCase().contains("duplicado"));
+    }
+
+    @Test
+    @DisplayName(
+            "Given a CSV with a duplicate ISBN in the same file," +
+            " when importSelected is called," +
+            " then only the first occurrence is saved and counted as new"
+    )
+    void shouldSaveOnlyFirstOccurrenceWhenIsbnRepeatsInSameFile() {
+        when(livroRepository.findByIsbn(any())).thenReturn(Optional.empty());
+        when(livroRepository.findByIsbnIncludingDeleted(any())).thenReturn(Optional.empty());
+        when(editoraRepository.findByNome(any())).thenReturn(Optional.of(new Editora("Pub")));
+        when(autorRepository.findByNome(any())).thenReturn(Optional.of(new Autor("Robert Martin")));
+        when(livroRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        ImportResult result = importFile(csvStream(
+                "titulo,isbn,autores,editora,dataPublicacao,idioma,numeroPaginas\n" +
+                "Clean Code,9780132350884,Robert Martin,Pub,,,\n" +
+                "Clean Code Duplicado,9780132350884,Robert Martin,Pub,,,"
+        ), "test.csv");
+
+        assertEquals(1, result.getTotalNew());
+        assertEquals(1, result.getErrors().size());
+        verify(livroRepository, times(1)).save(any(Livro.class));
+    }
+
     private ImportResult importFile(InputStream stream, String filename) {
         List<ImportPreviewRecord> previews = useCase.preview(stream, filename);
         return useCase.importSelected(previews);

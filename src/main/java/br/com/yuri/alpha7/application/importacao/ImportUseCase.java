@@ -82,12 +82,12 @@ public class ImportUseCase {
         logger.info("Preview iniciado: '{}'", filename);
         List<ImportRecord> records = parser.parse(stream);
         List<ImportPreviewRecord> previews = new ArrayList<>();
-        // CSV: starts at line 2 (line 1 is the header); XML: estimated from element index (no real line number)
+        Map<String, Integer> isbnsVistos = new HashMap<>();
         int lineNumber = "csv".equals(ext) ? 2 : 1;
 
         for (ImportRecord record : records) {
             int line = lineNumber++;
-            previews.add(validateRecord(line, record));
+            previews.add(validateRecord(line, record, isbnsVistos));
         }
 
         return previews;
@@ -104,6 +104,15 @@ public class ImportUseCase {
         return importSelected(previews, null);
     }
 
+    /**
+     * Grava apenas os registros marcados como selecionados na lista de preview, notificando
+     * o progresso a cada linha importada com sucesso.
+     *
+     * @param previews   lista retornada por {@link #preview(InputStream, String)}
+     * @param onProgress callback chamado com o total de registros já importados após cada
+     *                   linha bem-sucedida; pode ser {@code null}
+     * @return resultado com contadores de importados, ignorados e erros
+     */
     public ImportResult importSelected(List<ImportPreviewRecord> previews, Consumer<Integer> onProgress) {
         ImportResult result = new ImportResult();
 
@@ -139,7 +148,21 @@ public class ImportUseCase {
         return result;
     }
 
-    private ImportPreviewRecord validateRecord(int line, ImportRecord record) {
+    /**
+     * Valida uma linha do arquivo e classifica seu status sem gravar nada.
+     *
+     * <p>A ordem de checagem é: título obrigatório, autor obrigatório, ISBN válido, campos
+     * opcionais (data e número de páginas), ISBN duplicado dentro do próprio arquivo — usando
+     * {@code isbnsVistos} para lembrar a primeira linha em que cada ISBN normalizado apareceu —
+     * e por fim se o ISBN já existe no acervo.
+     *
+     * @param line        número da linha no arquivo original, usado nas mensagens de erro
+     * @param record      dados brutos lidos pelo {@link ImportParser}
+     * @param isbnsVistos mapa de ISBN normalizado para a primeira linha em que ele apareceu
+     *                    nesta mesma chamada de {@link #preview(InputStream, String)}
+     * @return preview com o status {@code NOVO}, {@code JA_EXISTE} ou {@code ERRO} da linha
+     */
+    private ImportPreviewRecord validateRecord(int line, ImportRecord record, Map<String, Integer> isbnsVistos) {
         try {
             if (record.getTitulo() == null || record.getTitulo().trim().isEmpty()) {
                 return new ImportPreviewRecord(
@@ -162,6 +185,18 @@ public class ImportUseCase {
 
             ISBN isbn = new ISBN(record.getIsbn());
             validateOptionalFields(record.getDataPublicacao(), record.getNumeroPaginas());
+
+            Integer firstLine = isbnsVistos.get(isbn.getValue());
+            if (firstLine != null) {
+                return new ImportPreviewRecord(
+                        line, record.getTitulo(), record.getIsbn(),
+                        ImportPreviewRecord.Status.ERRO,
+                        "ISBN duplicado no arquivo — já aparece na linha " + firstLine,
+                        false,
+                        record
+                );
+            }
+            isbnsVistos.put(isbn.getValue(), line);
 
             if (livroRepository.findByIsbn(isbn).isPresent()) {
                 return new ImportPreviewRecord(
@@ -200,11 +235,24 @@ public class ImportUseCase {
         }
     }
 
+    /**
+     * Valida os campos opcionais da linha, se informados.
+     *
+     * @param dataPublicacao ano de publicação em texto, ou vazio/nulo se omitido
+     * @param numeroPaginas  número de páginas em texto, ou vazio/nulo se omitido
+     * @throws ImportException se algum campo informado for inválido
+     */
     private void validateOptionalFields(String dataPublicacao, String numeroPaginas) {
         if (dataPublicacao != null && !dataPublicacao.isEmpty()) validateDate(dataPublicacao);
         if (numeroPaginas != null && !numeroPaginas.isEmpty()) validatePages(numeroPaginas);
     }
 
+    /**
+     * Valida que o valor representa um ano no formato {@code yyyy}, entre 1 e o ano atual.
+     *
+     * @param value ano de publicação em texto
+     * @throws ImportException se o valor não for um ano válido nesse intervalo
+     */
     private void validateDate(String value) {
         if (!value.matches("\\d{4}")) {
             throw new ImportException("Ano de publicação inválido. Use YYYY (ex: 2024)");
@@ -220,6 +268,12 @@ public class ImportUseCase {
         }
     }
 
+    /**
+     * Valida que o valor representa um número inteiro positivo de páginas.
+     *
+     * @param value número de páginas em texto
+     * @throws ImportException se o valor não for um inteiro positivo
+     */
     private void validatePages(String value) {
         int pages;
         try {
@@ -232,6 +286,13 @@ public class ImportUseCase {
         }
     }
 
+    /**
+     * Persiste um registro já validado, fazendo upsert por ISBN: reativa e atualiza o livro
+     * se já existir (inclusive soft-deletado), ou cria um novo caso contrário. Autor e editora
+     * são resolvidos por nome, reaproveitando os já cadastrados.
+     *
+     * @param record dado bruto da linha, obtido do preview selecionado pelo usuário
+     */
     private void saveRecord(ImportRecord record) {
         ISBN isbn = new ISBN(record.getIsbn());
 
@@ -262,6 +323,13 @@ public class ImportUseCase {
         livroRepository.save(livro);
     }
 
+    /**
+     * Resolve os nomes de autores separados por ponto-e-vírgula em entidades de domínio,
+     * reaproveitando autores já cadastrados pelo nome e criando os que não existem.
+     *
+     * @param authorNames texto com nomes de autores separados por {@code ;}
+     * @return autores resolvidos, na mesma ordem em que aparecem no texto
+     */
     private List<Autor> resolveAuthors(String authorNames) {
         List<Autor> authors = new ArrayList<>();
         for (String trimmed : parseAuthorNames(authorNames)) {
@@ -272,10 +340,22 @@ public class ImportUseCase {
         return authors;
     }
 
+    /**
+     * Verifica se o texto de autores contém ao menos um nome não vazio após o parse.
+     *
+     * @param authorNames texto com nomes de autores separados por {@code ;}
+     * @return {@code true} se houver ao menos um autor válido
+     */
     private boolean hasValidAuthor(String authorNames) {
         return !parseAuthorNames(authorNames).isEmpty();
     }
 
+    /**
+     * Separa o texto de autores por {@code ;}, removendo espaços e entradas vazias.
+     *
+     * @param authorNames texto com nomes de autores separados por {@code ;}, ou {@code null}
+     * @return nomes de autores não vazios já sem espaços nas bordas; lista vazia se {@code null}
+     */
     private List<String> parseAuthorNames(String authorNames) {
         List<String> names = new ArrayList<>();
         if (authorNames == null) {
@@ -290,6 +370,15 @@ public class ImportUseCase {
         return names;
     }
 
+    /**
+     * Atribui os campos opcionais já validados ao livro. Campos vazios ou nulos são ignorados,
+     * mantendo o valor atual do livro (relevante em upserts, onde o livro pode já ter dados).
+     *
+     * @param livro          livro a ser preenchido
+     * @param dataPublicacao ano de publicação em texto, ou vazio/nulo se omitido
+     * @param idioma         idioma do livro, ou vazio/nulo se omitido
+     * @param numeroPaginas  número de páginas em texto, ou vazio/nulo se omitido
+     */
     private void assignFields(Livro livro, String dataPublicacao, String idioma, String numeroPaginas) {
         if (dataPublicacao != null && !dataPublicacao.isEmpty()) {
             livro.setDataPublicacao(LocalDate.of(Integer.parseInt(dataPublicacao), 1, 1));
@@ -302,6 +391,12 @@ public class ImportUseCase {
         }
     }
 
+    /**
+     * Extrai a extensão do nome do arquivo, em minúsculas e sem o ponto.
+     *
+     * @param filename nome do arquivo
+     * @return extensão em minúsculas, ou string vazia se não houver ponto no nome
+     */
     private String extension(String filename) {
         int dot = filename.lastIndexOf('.');
         return dot >= 0 ? filename.substring(dot + 1).toLowerCase() : "";
