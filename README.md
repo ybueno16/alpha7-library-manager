@@ -214,11 +214,15 @@ Na primeira execução, o Flyway aplica automaticamente as migrations e cria tod
 
 ### 4. Executar os testes
 
+Testes unitários e de integração ficam em source sets separados (`src/test` e `src/integrationTest`), o que permite rodá-los isoladamente ou em paralelo (é assim que o CI roda — veja a seção CI/CD).
+
 ```bash
-./gradlew test
+./gradlew test              # só unitários
+./gradlew integrationTest   # só integração (sobe um PostgreSQL embedded, sem necessidade de Docker)
+./gradlew testAll           # os dois + relatório de cobertura mesclado
 ```
 
-Os testes de repositório sobem um PostgreSQL embedded (sem necessidade de Docker). O relatório de cobertura é gerado em `build/reports/jacoco/test/html/index.html`.
+O relatório de cobertura (gerado por `testAll` ou por `./gradlew jacocoTestReport` após rodar os dois) fica em `build/reports/jacoco/test/html/index.html`.
 
 ---
 
@@ -327,7 +331,47 @@ As colunas `created_at` e `updated_at` são preenchidas automaticamente pelo Hib
 | Workflow | Trigger | O que faz |
 |---|---|---|
 | `ci.yml` | Push / PR em `master` | Compila, executa testes, gera relatório JaCoCo e atualiza o badge de cobertura |
-| `release.yml` | Tag `v*` ou disparo manual | Gera o fat JAR e cria uma GitHub Release com o artefato anexado |
+| `release.yml` | Tag `v*` ou disparo manual | Valida a versão, roda a suíte completa, gera o fat JAR versionado com checksum e cria a GitHub Release |
+
+### Pipeline do `ci.yml`
+
+```
+        ┌──────────────────┐
+        │  build (compila) │
+        └────────┬─────────┘
+                  │
+        ┌─────────┴─────────┐
+        ▼                   ▼
+┌───────────────┐  ┌─────────────────────┐
+│  unit-tests    │  │  integration-tests  │   ← rodam em paralelo,
+│  (./gradlew    │  │  (./gradlew         │     cada um em seu
+│   test)        │  │   integrationTest)  │     próprio runner
+└───────┬────────┘  └──────────┬──────────┘
+        │                      │
+        └──────────┬───────────┘
+                    ▼
+        ┌───────────────────────┐
+        │  coverage              │
+        │  mescla os .exec,      │
+        │  gera relatório,       │
+        │  valida o mínimo de 90%│
+        │  e atualiza o badge    │
+        └────────────────────────┘
+```
+
+`build` falha rápido se o código não compilar, antes de gastar tempo com testes. `unit-tests` e `integration-tests` não dependem um do outro, então o GitHub Actions os executa em paralelo — o segundo não usa Postgres embarcado do primeiro nem interfere nele, já que cada job tem seu próprio runner. `coverage` só roda depois que os dois terminarem, baixando o `.exec` de cada um como artifact e mesclando via JaCoCo antes de aplicar o gate de cobertura mínima.
+
+Um `concurrency` group cancela execuções antigas do mesmo branch/PR quando um novo push chega, evitando gastar minutos de CI com um resultado que já ficou obsoleto.
+
+### Pipeline do `release.yml`
+
+Disparado por uma tag `vX.Y.Z` (ou manualmente informando a versão) — a tag precisa seguir semver estrito, versões fora do padrão são rejeitadas antes de qualquer build. O JAR e a release usam a mesma versão da tag (`v1.2.0` → `alpha7-library-manager-1.2.0.jar`), diferente do `1.0-SNAPSHOT` fixo usado nos demais builds.
+
+1. Valida o formato da versão (`vX.Y.Z`)
+2. Roda a suíte completa (`testAll`: unitários + integração + cobertura) — a release não é publicada se algo falhar
+3. Builda o fat JAR com a versão da tag, embutida também no manifest (`Implementation-Version`)
+4. Gera um checksum SHA256 do JAR
+5. Cria a GitHub Release anexando o JAR e o `.sha256`
 
 Para criar uma release:
 
@@ -343,7 +387,7 @@ git push origin v1.0.0
 Antes de enviar o projeto, rode:
 
 ```bash
-./gradlew clean test shadowJar
+./gradlew clean testAll shadowJar
 ```
 
 Arquivos úteis para revisão:
