@@ -3,6 +3,7 @@ package br.com.yuri.alpha7.infra.persistence.livro;
 import br.com.yuri.alpha7.domain.autor.model.Autor;
 import br.com.yuri.alpha7.domain.editora.model.Editora;
 import br.com.yuri.alpha7.domain.exception.BookNotFoundException;
+import br.com.yuri.alpha7.domain.exception.IsbnInvalidoException;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
 import br.com.yuri.alpha7.domain.livro.vo.ISBN;
 import br.com.yuri.alpha7.infra.persistence.AbstractRepositoryTest;
@@ -11,6 +12,9 @@ import br.com.yuri.alpha7.infra.persistence.autor.AutorRepositoryImpl;
 import br.com.yuri.alpha7.infra.persistence.editora.EditoraRepositoryImpl;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import br.com.yuri.alpha7.domain.livro.repository.LivroFiltro;
+import br.com.yuri.alpha7.domain.livro.repository.PagedResult;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -121,10 +125,11 @@ class LivroRepositoryImplTest extends AbstractRepositoryTest {
         livroRepository.save(basicBook("Domain-Driven Design", ISBN_DDD));
         livroRepository.save(basicBook("Clean Code", ISBN_CLEAN_CODE));
 
-        List<Livro> result = livroRepository.findByFiltro("Domain");
+        PagedResult<Livro> result = livroRepository.findByFiltro(
+                new LivroFiltro("Domain", null, null, null, null, null), 0, 50);
 
-        assertEquals(1, result.size());
-        assertEquals("Domain-Driven Design", result.get(0).getTitulo());
+        assertEquals(1, result.getItems().size());
+        assertEquals("Domain-Driven Design", result.getItems().get(0).getTitulo());
     }
 
     @Test
@@ -139,10 +144,11 @@ class LivroRepositoryImplTest extends AbstractRepositoryTest {
         livro.getAutores().add(autor);
         livroRepository.save(livro);
 
-        List<Livro> result = livroRepository.findByFiltro("Eric");
+        PagedResult<Livro> result = livroRepository.findByFiltro(
+                new LivroFiltro(null, "Eric", null, null, null, null), 0, 50);
 
-        assertEquals(1, result.size());
-        assertEquals("DDD", result.get(0).getTitulo());
+        assertEquals(1, result.getItems().size());
+        assertEquals("DDD", result.getItems().get(0).getTitulo());
     }
 
     @Test
@@ -157,10 +163,11 @@ class LivroRepositoryImplTest extends AbstractRepositoryTest {
         livro.setEditora(editora);
         livroRepository.save(livro);
 
-        List<Livro> result = livroRepository.findByFiltro("MIT");
+        PagedResult<Livro> result = livroRepository.findByFiltro(
+                new LivroFiltro("MIT", null, null, null, null, null), 0, 50);
 
-        assertEquals(1, result.size());
-        assertEquals("SICP", result.get(0).getTitulo());
+        assertEquals(1, result.getItems().size());
+        assertEquals("SICP", result.getItems().get(0).getTitulo());
     }
 
     @Test
@@ -171,8 +178,10 @@ class LivroRepositoryImplTest extends AbstractRepositoryTest {
     )
     void shouldReturnEmptyListWhenFilterMatchesNoBooks() {
         livroRepository.save(basicBook("Clean Code", ISBN_CLEAN_CODE));
-        List<Livro> result = livroRepository.findByFiltro("nonexistentterm");
-        assertTrue(result.isEmpty());
+        PagedResult<Livro> result = livroRepository.findByFiltro(
+                new LivroFiltro("nonexistentterm", null, null, null, null, null), 0, 50);
+        assertTrue(result.getItems().isEmpty());
+        assertEquals(0, result.getTotalCount());
     }
 
     @Test
@@ -268,6 +277,57 @@ class LivroRepositoryImplTest extends AbstractRepositoryTest {
     void shouldReturnEmptyListWhenNoBooksExist() {
         List<Livro> result = livroRepository.findAll();
         assertTrue(result.isEmpty());
+    }
+
+    @Test
+    @DisplayName(
+            "Given multiple books in the database," +
+            " when findAll with page and size is called," +
+            " then the correct page of books is returned with total count"
+    )
+    void shouldReturnPagedResultWhenFindAllPaginated() {
+        livroRepository.save(basicBook("Alpha Book", ISBN_EFFECTIVE_JAVA));
+        livroRepository.save(basicBook("Beta Book",  ISBN_CLEAN_CODE));
+        livroRepository.save(basicBook("Gamma Book", ISBN_DDD));
+
+        PagedResult<Livro> page0 = livroRepository.findAll(0, 2);
+        assertEquals(3, page0.getTotalCount());
+        assertEquals(2, page0.getItems().size());
+
+        PagedResult<Livro> page1 = livroRepository.findAll(1, 2);
+        assertEquals(3, page1.getTotalCount());
+        assertEquals(1, page1.getItems().size());
+    }
+
+    @Test
+    @DisplayName(
+            "Given two books saved directly via the repository with the same ISBN," +
+            " when the second save is executed in standalone mode," +
+            " then IsbnInvalidoException is thrown by the unique constraint"
+    )
+    void shouldThrowIsbnInvalidoExceptionOnDuplicateIsbnAtRepositoryLevel() {
+        livroRepository.save(basicBook("First Book", ISBN_CLEAN_CODE));
+
+        assertThrows(IsbnInvalidoException.class, () ->
+                livroRepository.save(basicBook("Second Book", ISBN_CLEAN_CODE))
+        );
+    }
+
+    @Test
+    @DisplayName(
+            "Given two books saved via UnitOfWork with the same ISBN," +
+            " when the second transaction commits," +
+            " then IsbnInvalidoException is thrown by the unique constraint"
+    )
+    void shouldThrowIsbnInvalidoExceptionOnDuplicateIsbnViaUnitOfWork() {
+        HibernateUnitOfWork unitOfWork = new HibernateUnitOfWork();
+        livroRepository.save(basicBook("First Book", ISBN_DDD));
+
+        assertThrows(IsbnInvalidoException.class, () ->
+                unitOfWork.execute(() ->
+                        livroRepository.save(basicBook("Second Book", ISBN_DDD))
+                )
+        );
     }
 
     private Livro basicBook(String titulo, ISBN isbn) {

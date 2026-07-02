@@ -1,7 +1,9 @@
 package br.com.yuri.alpha7.application.livro;
 
 import br.com.yuri.alpha7.domain.livro.model.Livro;
+import br.com.yuri.alpha7.domain.livro.repository.LivroFiltro;
 import br.com.yuri.alpha7.domain.livro.repository.LivroRepository;
+import br.com.yuri.alpha7.domain.livro.repository.PagedResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -57,31 +59,54 @@ class BookSearchUseCaseTest {
 
     @Test
     @DisplayName(
+            "Given books in the repository," +
+            " when findAll with pagination is called," +
+            " then paged result is returned"
+    )
+    void shouldReturnPagedResultWhenFindAllWithPagination() {
+        List<Livro> books = Arrays.asList(new Livro(), new Livro());
+        PagedResult<Livro> pagedResult = new PagedResult<>(books, 5);
+        when(livroRepository.findAll(0, 10)).thenReturn(pagedResult);
+
+        PagedResult<Livro> result = useCase.findAll(0, 10);
+
+        assertEquals(2, result.getItems().size());
+        assertEquals(5, result.getTotalCount());
+        verify(livroRepository).findAll(0, 10);
+    }
+
+    @Test
+    @DisplayName(
             "Given books matching a filter term," +
-            " when findByFiltro is called," +
+            " when findByFiltro is called with pagination," +
             " then matching books are returned"
     )
     void shouldReturnFilteredBooksFromRepository() {
         List<Livro> books = Arrays.asList(new Livro());
-        when(livroRepository.findByFiltro("Clean")).thenReturn(books);
+        PagedResult<Livro> pagedResult = new PagedResult<>(books, 1);
+        LivroFiltro filtro = new LivroFiltro("Clean", null, null, null, null, null);
+        when(livroRepository.findByFiltro(filtro, 0, 50)).thenReturn(pagedResult);
 
-        List<Livro> result = useCase.findByFiltro("Clean");
+        PagedResult<Livro> result = useCase.findByFiltro(filtro, 0, 50);
 
-        assertEquals(1, result.size());
-        verify(livroRepository).findByFiltro("Clean");
+        assertEquals(1, result.getItems().size());
+        verify(livroRepository).findByFiltro(filtro, 0, 50);
     }
 
     @Test
     @DisplayName(
             "Given no books matching the filter term," +
-            " when findByFiltro is called," +
-            " then empty list is returned"
+            " when findByFiltro is called with pagination," +
+            " then empty result is returned"
     )
-    void shouldReturnEmptyListWhenFilterMatchesNoBooks() {
-        when(livroRepository.findByFiltro("nonexistent")).thenReturn(Collections.emptyList());
+    void shouldReturnEmptyResultWhenFilterMatchesNoBooks() {
+        PagedResult<Livro> pagedResult = new PagedResult<>(Collections.emptyList(), 0);
+        LivroFiltro filtro = new LivroFiltro("nonexistent", null, null, null, null, null);
+        when(livroRepository.findByFiltro(filtro, 0, 50)).thenReturn(pagedResult);
 
-        List<Livro> result = useCase.findByFiltro("nonexistent");
+        PagedResult<Livro> result = useCase.findByFiltro(filtro, 0, 50);
 
-        assertTrue(result.isEmpty());
+        assertTrue(result.getItems().isEmpty());
+        assertEquals(0, result.getTotalCount());
     }
 }

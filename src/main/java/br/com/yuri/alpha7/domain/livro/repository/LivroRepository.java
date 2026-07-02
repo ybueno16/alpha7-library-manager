@@ -4,6 +4,7 @@ import br.com.yuri.alpha7.domain.livro.model.Livro;
 import br.com.yuri.alpha7.domain.livro.vo.ISBN;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -44,20 +45,15 @@ public interface LivroRepository {
      */
     Optional<Livro> findByIsbnIncludingDeleted(ISBN isbn);
 
-    /**
-     * Retorna todos os livros cadastrados.
-     *
-     * @return lista de livros
-     */
     List<Livro> findAll();
 
-    /**
-     * Pesquisa livros por qualquer campo textual.
-     *
-     * @param termo termo de pesquisa
-     * @return lista de livros que correspondem ao termo
-     */
-    List<Livro> findByFiltro(String termo);
+    PagedResult<Livro> findAll(int page, int pageSize);
+
+    PagedResult<Livro> findByFiltro(LivroFiltro filtro, int page, int pageSize);
+
+    List<String> findAllEditorasAtivas();
+
+    List<String> findAllIdiomasDistintos();
 
     /**
      * Remove um livro pelo identificador.
@@ -65,4 +61,30 @@ public interface LivroRepository {
      * @param id identificador do livro a remover
      */
     void delete(Long id);
+
+    /** Retorna o total de livros ativos no acervo. */
+    long countAll();
+
+    /**
+     * Retorna a contagem de livros agrupados por idioma.
+     * Chaves podem ser {@code null} ou string em branco para livros sem idioma.
+     */
+    Map<String, Long> countByIdioma();
+
+    /**
+     * Retorna a contagem de livros por nome de autor.
+     */
+    Map<String, Long> countByAutor();
+
+    /**
+     * Retorna a contagem de livros por nome de editora.
+     * Chave {@code null} representa livros sem editora.
+     */
+    Map<String, Long> countByEditora();
+
+    /**
+     * Retorna a contagem de livros por ano de publicação, ordenada por ano crescente.
+     * Livros sem data de publicação são excluídos.
+     */
+    Map<Integer, Long> countByAno();
 }

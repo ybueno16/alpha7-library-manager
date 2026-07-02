@@ -2,10 +2,16 @@ package br.com.yuri.alpha7.infra.persistence.livro;
 
 import br.com.yuri.alpha7.domain.exception.BookNotFoundException;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
+import br.com.yuri.alpha7.domain.livro.repository.LivroFiltro;
 import br.com.yuri.alpha7.domain.livro.repository.LivroRepository;
+import br.com.yuri.alpha7.domain.livro.repository.PagedResult;
 import br.com.yuri.alpha7.domain.livro.vo.ISBN;
 import br.com.yuri.alpha7.infra.persistence.BaseRepository;
 
+import javax.persistence.Query;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -102,27 +108,148 @@ public class LivroRepositoryImpl extends BaseRepository implements LivroReposito
     }
 
     @Override
-    public List<Livro> findByFiltro(String termo) {
-        String safe = termo.replace("!", "!!")
-                .replace("%", "!%")
-                .replace("_", "!_");
+    public PagedResult<Livro> findAll(int page, int pageSize) {
+        return executeQuery(em -> {
+            long total = (Long) em.createQuery(
+                    "SELECT COUNT(l) FROM Livro l WHERE l.deletedAt IS NULL")
+                    .getSingleResult();
+
+            List<Long> ids = em.createQuery(
+                    "SELECT l.id FROM Livro l WHERE l.deletedAt IS NULL ORDER BY l.titulo",
+                    Long.class)
+                    .setFirstResult(page * pageSize)
+                    .setMaxResults(pageSize)
+                    .getResultList();
+
+            if (ids.isEmpty()) {
+                return new PagedResult<>(Collections.emptyList(), total);
+            }
+
+            List<Livro> items = em.createQuery(
+                    "SELECT DISTINCT l FROM Livro l " +
+                    "LEFT JOIN FETCH l.editora " +
+                    "LEFT JOIN FETCH l.autores " +
+                    "WHERE l.id IN :ids ORDER BY l.titulo", LivroEntity.class)
+                    .setParameter("ids", ids)
+                    .getResultList()
+                    .stream()
+                    .map(LivroMapper::toDomain)
+                    .collect(Collectors.toList());
+
+            return new PagedResult<>(items, total);
+        });
+    }
+
+    @Override
+    public PagedResult<Livro> findByFiltro(LivroFiltro filtro, int page, int pageSize) {
+        List<String> conds    = buildConditions(filtro);
+        String where          = "WHERE " + String.join(" AND ", conds);
+        String baseFrom       = "FROM Livro l LEFT JOIN l.editora e LEFT JOIN l.autores a ";
+
+        return executeQuery(em -> {
+            Query countQ = em.createQuery("SELECT COUNT(DISTINCT l) " + baseFrom + where);
+            applyParams(countQ, filtro);
+            long total = (Long) countQ.getSingleResult();
+
+            javax.persistence.TypedQuery<Long> idQ = em.createQuery(
+                    "SELECT l.id " + baseFrom + where +
+                    " GROUP BY l.id, l.titulo ORDER BY l.titulo", Long.class);
+            applyParams(idQ, filtro);
+            List<Long> ids = idQ
+                    .setFirstResult(page * pageSize)
+                    .setMaxResults(pageSize)
+                    .getResultList();
+
+            if (ids.isEmpty()) {
+                return new PagedResult<>(Collections.emptyList(), total);
+            }
+
+            List<Livro> items = em.createQuery(
+                    "SELECT DISTINCT l FROM Livro l " +
+                    "LEFT JOIN FETCH l.editora " +
+                    "LEFT JOIN FETCH l.autores " +
+                    "WHERE l.id IN :ids ORDER BY l.titulo", LivroEntity.class)
+                    .setParameter("ids", ids)
+                    .getResultList()
+                    .stream()
+                    .map(LivroMapper::toDomain)
+                    .collect(Collectors.toList());
+
+            return new PagedResult<>(items, total);
+        });
+    }
+
+    @Override
+    public List<String> findAllEditorasAtivas() {
         return executeQuery(em ->
                 em.createQuery(
-                                "SELECT DISTINCT l FROM Livro l " +
-                                "LEFT JOIN FETCH l.editora e " +
-                                "LEFT JOIN FETCH l.autores a " +
-                                "WHERE l.deletedAt IS NULL " +
-                                "AND (LOWER(l.titulo)         LIKE LOWER(:termo) ESCAPE '!' " +
-                                "OR   LOWER(l.idioma)         LIKE LOWER(:termo) ESCAPE '!' " +
-                                "OR   LOWER(e.nome)           LIKE LOWER(:termo) ESCAPE '!' " +
-                                "OR   LOWER(a.nome)           LIKE LOWER(:termo) ESCAPE '!' " +
-                                "OR   CAST(l.isbn AS string)  LIKE LOWER(:termo) ESCAPE '!') " +
-                                "ORDER BY l.titulo", LivroEntity.class)
-                        .setParameter("termo", "%" + safe + "%")
-                        .getResultList()
-                        .stream()
-                        .map(LivroMapper::toDomain)
-                        .collect(Collectors.toList()));
+                        "SELECT DISTINCT e.nome FROM Livro l " +
+                        "JOIN l.editora e " +
+                        "WHERE l.deletedAt IS NULL " +
+                        "ORDER BY e.nome", String.class)
+                        .getResultList());
+    }
+
+    @Override
+    public List<String> findAllIdiomasDistintos() {
+        return executeQuery(em ->
+                em.createQuery(
+                        "SELECT DISTINCT l.idioma FROM Livro l " +
+                        "WHERE l.deletedAt IS NULL AND l.idioma IS NOT NULL " +
+                        "ORDER BY l.idioma", String.class)
+                        .getResultList());
+    }
+
+    private List<String> buildConditions(LivroFiltro filtro) {
+        List<String> conds = new ArrayList<>();
+        conds.add("l.deletedAt IS NULL");
+        if (hasText(filtro.getTermo())) {
+            conds.add(
+                    "(LOWER(l.titulo)        LIKE LOWER(:termo) ESCAPE '!' " +
+                    "OR CAST(l.isbn AS string) LIKE UPPER(:termo) ESCAPE '!' " +
+                    "OR LOWER(e.nome)          LIKE LOWER(:termo) ESCAPE '!' " +
+                    "OR LOWER(a.nome)          LIKE LOWER(:termo) ESCAPE '!' " +
+                    "OR LOWER(l.idioma)        LIKE LOWER(:termo) ESCAPE '!')");
+        }
+        if (hasText(filtro.getAutor())) {
+            conds.add("LOWER(a.nome) LIKE LOWER(:autor) ESCAPE '!'");
+        }
+        if (hasText(filtro.getEditora())) {
+            conds.add("e.nome = :editora");
+        }
+        if (filtro.getAnoMin() != null) {
+            conds.add("l.dataPublicacao >= :dateMin");
+        }
+        if (filtro.getAnoMax() != null) {
+            conds.add("l.dataPublicacao <= :dateMax");
+        }
+        if (hasText(filtro.getIdioma())) {
+            conds.add("l.idioma = :idioma");
+        }
+        return conds;
+    }
+
+    private void applyParams(Query q, LivroFiltro filtro) {
+        if (hasText(filtro.getTermo()))
+            q.setParameter("termo", "%" + escape(filtro.getTermo()) + "%");
+        if (hasText(filtro.getAutor()))
+            q.setParameter("autor", "%" + escape(filtro.getAutor()) + "%");
+        if (hasText(filtro.getEditora()))
+            q.setParameter("editora", filtro.getEditora());
+        if (filtro.getAnoMin() != null)
+            q.setParameter("dateMin", LocalDate.of(filtro.getAnoMin(), 1, 1));
+        if (filtro.getAnoMax() != null)
+            q.setParameter("dateMax", LocalDate.of(filtro.getAnoMax(), 12, 31));
+        if (hasText(filtro.getIdioma()))
+            q.setParameter("idioma", filtro.getIdioma());
+    }
+
+    private static String escape(String value) {
+        return value.replace("!", "!!").replace("%", "!%").replace("_", "!_");
+    }
+
+    private static boolean hasText(String s) {
+        return s != null && !s.trim().isEmpty();
     }
 
     @Override
