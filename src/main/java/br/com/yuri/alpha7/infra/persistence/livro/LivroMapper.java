@@ -78,6 +78,9 @@ public class LivroMapper {
         entity.setAutores(livro.getAutores().stream()
                 .map(AutorMapper::toEntity)
                 .collect(Collectors.toList()));
+        entity.setLivrosSemelhantes(livro.getLivrosSemelhantes().stream()
+                .map(LivroMapper::toEntity)
+                .collect(Collectors.toList()));
         return entity;
     }
 }

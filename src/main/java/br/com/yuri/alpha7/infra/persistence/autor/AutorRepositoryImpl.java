@@ -45,7 +45,7 @@ public class AutorRepositoryImpl extends BaseRepository implements AutorReposito
         return executeQuery(em -> {
             List<AutorEntity> results = em.createQuery(
                             "SELECT a FROM Autor a " +
-                            "WHERE LOWER(a.nome) = LOWER(:nome) " +
+                            "WHERE LOWER(TRIM(a.nome)) = LOWER(TRIM(:nome)) " +
                             "AND a.deletedAt IS NULL", AutorEntity.class)
                     .setParameter("nome", nome)
                     .getResultList();

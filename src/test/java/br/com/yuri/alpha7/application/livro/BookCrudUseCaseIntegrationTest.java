@@ -6,6 +6,7 @@ import br.com.yuri.alpha7.domain.livro.model.Livro;
 import br.com.yuri.alpha7.domain.livro.vo.ISBN;
 import br.com.yuri.alpha7.infra.persistence.AbstractRepositoryTest;
 import br.com.yuri.alpha7.infra.persistence.HibernateUnitOfWork;
+import br.com.yuri.alpha7.infra.persistence.autor.AutorRepositoryImpl;
 import br.com.yuri.alpha7.infra.persistence.editora.EditoraRepositoryImpl;
 import br.com.yuri.alpha7.infra.persistence.livro.LivroRepositoryImpl;
 import org.junit.jupiter.api.DisplayName;
@@ -18,9 +19,10 @@ import static org.junit.jupiter.api.Assertions.*;
 class BookCrudUseCaseIntegrationTest extends AbstractRepositoryTest {
 
     private final LivroRepositoryImpl   livroRepository   = new LivroRepositoryImpl();
+    private final AutorRepositoryImpl   autorRepository   = new AutorRepositoryImpl();
     private final EditoraRepositoryImpl editoraRepository = new EditoraRepositoryImpl();
     private final HibernateUnitOfWork   unitOfWork        = new HibernateUnitOfWork();
-    private final BookCrudUseCase       useCase           = new BookCrudUseCase(livroRepository, editoraRepository, unitOfWork);
+    private final BookCrudUseCase       useCase           = new BookCrudUseCase(livroRepository, autorRepository, editoraRepository, unitOfWork);
 
     private static final ISBN ISBN_A = new ISBN("9780132350884");
     private static final ISBN ISBN_B = new ISBN("9780134685991");

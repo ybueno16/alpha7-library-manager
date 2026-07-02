@@ -42,7 +42,7 @@ public class EditoraRepositoryImpl extends BaseRepository implements EditoraRepo
         return executeQuery(em -> {
             List<EditoraEntity> results = em.createQuery(
                             "SELECT e FROM Editora e " +
-                            "WHERE LOWER(e.nome) = LOWER(:nome) " +
+                            "WHERE LOWER(TRIM(e.nome)) = LOWER(TRIM(:nome)) " +
                             "AND e.deletedAt IS NULL", EditoraEntity.class)
                     .setParameter("nome", nome)
                     .getResultList();

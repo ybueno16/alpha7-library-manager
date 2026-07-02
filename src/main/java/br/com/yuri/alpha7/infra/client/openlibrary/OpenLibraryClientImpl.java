@@ -66,12 +66,13 @@ public class OpenLibraryClientImpl implements OpenLibraryClient {
 
     @Override
     public Optional<Livro> findByIsbn(ISBN isbn) {
+        String url = buildIsbnUrl(isbn);
         Request request = new Request.Builder()
-                .url(buildIsbnUrl(isbn))
+                .url(url)
                 .get()
                 .build();
 
-        logger.debug("Consultando OpenLibrary: GET {}", buildIsbnUrl(isbn));
+        logger.debug("Consultando OpenLibrary: GET {}", url);
         try (Response response = httpClient.newCall(request).execute()) {
             if (response.code() == 404) {
                 logger.debug("ISBN {} não encontrado na OpenLibrary (HTTP 404)", isbn.getValue());
@@ -80,7 +81,7 @@ public class OpenLibraryClientImpl implements OpenLibraryClient {
             if (!response.isSuccessful()) {
                 logger.warn("OpenLibrary retornou status inesperado {} para ISBN {}", response.code(), isbn.getValue());
                 throw new OpenLibraryUnavailableException(
-                        "Open Library API is unavailable. Response code: " + response.code()
+                        "OpenLibrary indisponível. Código HTTP: " + response.code()
                 );
             }
 

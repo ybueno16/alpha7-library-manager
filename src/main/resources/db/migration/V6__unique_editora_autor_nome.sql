@@ -1,2 +1,7 @@
-ALTER TABLE editora ADD CONSTRAINT uq_editora_nome UNIQUE (nome);
-ALTER TABLE autor   ADD CONSTRAINT uq_autor_nome   UNIQUE (nome);
+CREATE UNIQUE INDEX uq_autor_nome_ativo
+    ON autor (LOWER(TRIM(nome)))
+    WHERE deleted_at IS NULL;
+
+CREATE UNIQUE INDEX uq_editora_nome_ativo
+    ON editora (LOWER(TRIM(nome)))
+    WHERE deleted_at IS NULL;

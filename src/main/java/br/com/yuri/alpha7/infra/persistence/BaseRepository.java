@@ -1,5 +1,9 @@
 package br.com.yuri.alpha7.infra.persistence;
 
+import br.com.yuri.alpha7.domain.exception.IsbnInvalidoException;
+import br.com.yuri.alpha7.domain.exception.LibraryException;
+import org.hibernate.exception.ConstraintViolationException;
+
 import javax.persistence.EntityManager;
 import java.util.Optional;
 import java.util.function.Function;
@@ -38,9 +42,19 @@ public abstract class BaseRepository {
             T result = action.apply(entityManager);
             entityManager.getTransaction().commit();
             return result;
-        } catch (Exception e){
+        } catch (LibraryException e) {
             entityManager.getTransaction().rollback();
             throw e;
+        } catch (Exception e) {
+            entityManager.getTransaction().rollback();
+            ConstraintViolationException cve = HibernateUnitOfWork.unwrapConstraintViolation(e);
+            if (cve != null) {
+                if (cve.getConstraintName() != null && cve.getConstraintName().toLowerCase().contains("isbn")) {
+                    throw new IsbnInvalidoException("ISBN já cadastrado no acervo");
+                }
+                throw new LibraryException("Violação de regra de integridade dos dados", cve);
+            }
+            throw new LibraryException("Não foi possível completar a operação", e);
         } finally {
             entityManager.close();
         }

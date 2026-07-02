@@ -22,7 +22,16 @@ public final class ISBN implements Serializable {
         }
         String normalized = normalize(value);
         validate(normalized);
-        this.value = normalized;
+        this.value = normalized.length() == 10 ? toIsbn13(normalized) : normalized;
+    }
+
+    private static String toIsbn13(String isbn10) {
+        String base = "978" + isbn10.substring(0, 9);
+        int sum = 0;
+        for (int i = 0; i < 12; i++) {
+            sum += (base.charAt(i) - '0') * (i % 2 == 0 ? 1 : 3);
+        }
+        return base + (10 - (sum % 10)) % 10;
     }
 
     public String getValue() {

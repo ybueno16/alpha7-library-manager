@@ -1,6 +1,8 @@
 package br.com.yuri.alpha7.application.livro;
 
 import br.com.yuri.alpha7.application.UnitOfWork;
+import br.com.yuri.alpha7.domain.autor.model.Autor;
+import br.com.yuri.alpha7.domain.autor.repository.AutorRepository;
 import br.com.yuri.alpha7.domain.editora.repository.EditoraRepository;
 import br.com.yuri.alpha7.domain.exception.BookNotFoundException;
 import br.com.yuri.alpha7.domain.exception.IsbnInvalidoException;
@@ -16,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import br.com.yuri.alpha7.domain.editora.model.Editora;
 
+import java.util.Collections;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -27,7 +30,9 @@ import static org.mockito.Mockito.*;
 class BookCrudUseCaseTest {
 
     @Mock
-    private LivroRepository  livroRepository;
+    private LivroRepository   livroRepository;
+    @Mock
+    private AutorRepository   autorRepository;
     @Mock
     private EditoraRepository editoraRepository;
     @Mock
@@ -165,6 +170,56 @@ class BookCrudUseCaseTest {
         assertSame(livro, saved);
         verify(editoraRepository).save(any(Editora.class));
         verify(livroRepository).save(livro);
+    }
+
+    @Test
+    @DisplayName(
+            "Given a book with an author typed by name that already exists in the database," +
+            " when saveWithEditora is called," +
+            " then the existing author is resolved by name and no new author is created"
+    )
+    void shouldResolveExistingAutorByNameWhenSavingBook() {
+        Autor existing = new Autor("Robert Martin");
+        existing.setId(1L);
+        Livro livro = bookWithIsbn(VALID_ISBN);
+        livro.setAutores(Collections.singletonList(new Autor("Robert Martin")));
+
+        doAnswer(inv -> ((Supplier<?>) inv.getArgument(0)).get())
+                .when(unitOfWork).execute(any(Supplier.class));
+        when(autorRepository.findByNome("Robert Martin")).thenReturn(Optional.of(existing));
+        when(livroRepository.findByIsbn(VALID_ISBN)).thenReturn(Optional.empty());
+        when(livroRepository.save(livro)).thenReturn(livro);
+
+        useCase.saveWithEditora(livro, null);
+
+        verify(autorRepository).findByNome("Robert Martin");
+        verify(autorRepository, never()).save(any(Autor.class));
+        verify(livroRepository).save(livro);
+    }
+
+    @Test
+    @DisplayName(
+            "Given a book with a new author name not yet in the database," +
+            " when saveWithEditora is called," +
+            " then the author is created and associated to the book"
+    )
+    void shouldCreateNewAutorWhenNotFoundByName() {
+        Autor novoAutor = new Autor("Novo Autor");
+        Autor savedAutor = new Autor("Novo Autor");
+        savedAutor.setId(99L);
+        Livro livro = bookWithIsbn(VALID_ISBN);
+        livro.setAutores(Collections.singletonList(novoAutor));
+
+        doAnswer(inv -> ((Supplier<?>) inv.getArgument(0)).get())
+                .when(unitOfWork).execute(any(Supplier.class));
+        when(autorRepository.findByNome("Novo Autor")).thenReturn(Optional.empty());
+        when(autorRepository.save(novoAutor)).thenReturn(savedAutor);
+        when(livroRepository.findByIsbn(VALID_ISBN)).thenReturn(Optional.empty());
+        when(livroRepository.save(livro)).thenReturn(livro);
+
+        useCase.saveWithEditora(livro, null);
+
+        verify(autorRepository).save(novoAutor);
     }
 
     private Livro bookWithIsbn(ISBN isbn) {

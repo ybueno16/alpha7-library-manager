@@ -43,7 +43,7 @@ public class CacheManagerProvider {
         return cacheManager;
     }
 
-    public static void shutdown() {
+    public static synchronized void shutdown() {
         if (cacheManager != null && !cacheManager.isClosed()) {
             cacheManager.close();
         }

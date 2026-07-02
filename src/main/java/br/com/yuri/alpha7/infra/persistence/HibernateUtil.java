@@ -31,7 +31,7 @@ public final class HibernateUtil {
     private static final String PERSISTENCE_UNIT    = "libraryPU";
     private static final String DEFAULT_JDBC_URL    = "jdbc:postgresql://localhost:5432/library";
     private static final String DEFAULT_DB_USER     = "library_user";
-    private static final String DEFAULT_DB_PASSWORD = "";
+    private static final String DEFAULT_DB_PASSWORD = "library_pass";
 
     private static volatile HikariDataSource dataSource;
     private static volatile EntityManagerFactory entityManagerFactory;

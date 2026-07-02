@@ -107,7 +107,7 @@ public class Livro implements Serializable {
     }
 
     public void setLivrosSemelhantes(List<Livro> livrosSemelhantes) {
-        this.livrosSemelhantes = livrosSemelhantes;
+        this.livrosSemelhantes = livrosSemelhantes != null ? livrosSemelhantes : new ArrayList<>();
     }
 
     @Override
@@ -124,6 +124,6 @@ public class Livro implements Serializable {
 
     @Override
     public String toString() {
-        return titulo + " [" + isbn + "]";
+        return titulo + " [" + (isbn != null ? isbn.getValue() : "sem ISBN") + "]";
     }
 }

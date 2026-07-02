@@ -1,6 +1,8 @@
 package br.com.yuri.alpha7.application.livro;
 
 import br.com.yuri.alpha7.application.UnitOfWork;
+import br.com.yuri.alpha7.domain.autor.model.Autor;
+import br.com.yuri.alpha7.domain.autor.repository.AutorRepository;
 import br.com.yuri.alpha7.domain.editora.model.Editora;
 import br.com.yuri.alpha7.domain.editora.repository.EditoraRepository;
 import br.com.yuri.alpha7.domain.exception.BookNotFoundException;
@@ -8,7 +10,9 @@ import br.com.yuri.alpha7.domain.exception.IsbnInvalidoException;
 import br.com.yuri.alpha7.domain.livro.model.Livro;
 import br.com.yuri.alpha7.domain.livro.repository.LivroRepository;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Caso de uso responsável por persistir, buscar e remover livros do acervo.
@@ -22,13 +26,16 @@ import java.util.Optional;
 public class BookCrudUseCase {
 
     private final LivroRepository   livroRepository;
+    private final AutorRepository   autorRepository;
     private final EditoraRepository editoraRepository;
     private final UnitOfWork        unitOfWork;
 
     public BookCrudUseCase(LivroRepository livroRepository,
+                           AutorRepository autorRepository,
                            EditoraRepository editoraRepository,
                            UnitOfWork unitOfWork) {
         this.livroRepository   = livroRepository;
+        this.autorRepository   = autorRepository;
         this.editoraRepository = editoraRepository;
         this.unitOfWork        = unitOfWork;
     }
@@ -48,6 +55,11 @@ public class BookCrudUseCase {
                         .orElseGet(() -> editoraRepository.save(new Editora(editoraNome)));
                 livro.setEditora(editora);
             }
+            List<Autor> autoresResolvidos = livro.getAutores().stream()
+                    .map(a -> autorRepository.findByNome(a.getNome())
+                            .orElseGet(() -> autorRepository.save(a)))
+                    .collect(Collectors.toList());
+            livro.setAutores(autoresResolvidos);
             return save(livro);
         });
     }

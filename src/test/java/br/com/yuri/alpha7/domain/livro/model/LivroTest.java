@@ -89,6 +89,44 @@ class LivroTest {
 
     @Test
     @DisplayName(
+            "Given a book with no ISBN," +
+            " when toString is called," +
+            " then 'sem ISBN' appears in the result"
+    )
+    void shouldIncludeSemIsbnWhenIsbnIsNull() {
+        Livro livro = new Livro();
+        livro.setTitulo("No ISBN Book");
+        assertTrue(livro.toString().contains("sem ISBN"));
+    }
+
+    @Test
+    @DisplayName(
+            "Given null is passed to setAutores," +
+            " when getAutores is called," +
+            " then an empty list is returned"
+    )
+    void shouldDefaultToEmptyListWhenSetAutoresReceivesNull() {
+        Livro livro = new Livro();
+        livro.setAutores(null);
+        assertNotNull(livro.getAutores());
+        assertTrue(livro.getAutores().isEmpty());
+    }
+
+    @Test
+    @DisplayName(
+            "Given null is passed to setLivrosSemelhantes," +
+            " when getLivrosSemelhantes is called," +
+            " then an empty list is returned"
+    )
+    void shouldDefaultToEmptyListWhenSetLivrosSemelhantesReceivesNull() {
+        Livro livro = new Livro();
+        livro.setLivrosSemelhantes(null);
+        assertNotNull(livro.getLivrosSemelhantes());
+        assertTrue(livro.getLivrosSemelhantes().isEmpty());
+    }
+
+    @Test
+    @DisplayName(
             "Given a book," +
             " when all fields are set," +
             " then all getters return the correct values"

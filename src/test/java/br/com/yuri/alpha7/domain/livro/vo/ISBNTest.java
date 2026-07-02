@@ -23,11 +23,11 @@ class ISBNTest {
     @DisplayName(
             "Given a valid ISBN-10," +
             " when ISBN is created," +
-            " then value is stored correctly"
+            " then value is converted to canonical ISBN-13 form"
     )
     void shouldCreateValidIsbn10() {
         ISBN isbn = new ISBN("0306406152");
-        assertEquals("0306406152", isbn.getValue());
+        assertEquals("9780306406157", isbn.getValue());
     }
 
     @Test
