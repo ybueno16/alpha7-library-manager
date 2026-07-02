@@ -30,12 +30,32 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Validate version format
+        run: |
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Versão inválida: '$VERSION'. Use o formato semver vX.Y.Z (ex: v1.2.0)."
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "RELEASE_VERSION=${VERSION#v}" >> "$GITHUB_ENV"
+
+      - name: Run full test suite
+        run: ./gradlew -Dorg.gradle.java.home="$JAVA_HOME" testAll
+
       - name: Build fat JAR
-        run: ./gradlew -Dorg.gradle.java.home="$JAVA_HOME" shadowJar
+        run: ./gradlew -Dorg.gradle.java.home="$JAVA_HOME" -PreleaseVersion="$RELEASE_VERSION" shadowJar
+
+      - name: Generate checksum
+        run: |
+          cd build/libs
+          sha256sum "alpha7-library-manager-${RELEASE_VERSION}.jar" > "alpha7-library-manager-${RELEASE_VERSION}.jar.sha256"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: build/libs/alpha7-library-manager-*.jar
+          files: |
+            build/libs/alpha7-library-manager-${{ env.RELEASE_VERSION }}.jar
+            build/libs/alpha7-library-manager-${{ env.RELEASE_VERSION }}.jar.sha256
           generate_release_notes: true
-          tag_name: ${{ github.event.inputs.version || github.ref_name }}
+          tag_name: ${{ env.VERSION }}
