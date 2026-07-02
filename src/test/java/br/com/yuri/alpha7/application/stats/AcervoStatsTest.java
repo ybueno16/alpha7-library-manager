@@ -3,7 +3,6 @@ package br.com.yuri.alpha7.application.stats;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -23,9 +22,9 @@ class AcervoStatsTest {
         Map<String, Long> livrosPorIdioma = new HashMap<>();
         livrosPorIdioma.put("en", 5L);
 
-        Map.Entry<String, Long> autorEntry = new AbstractMap.SimpleEntry<>("Robert C. Martin", 3L);
-        List<Map.Entry<String, Long>> topAutores  = Collections.singletonList(autorEntry);
-        List<Map.Entry<String, Long>> topEditoras = Collections.emptyList();
+        StatEntry autorEntry = new StatEntry("Robert C. Martin", 3L);
+        List<StatEntry> topAutores  = Collections.singletonList(autorEntry);
+        List<StatEntry> topEditoras = Collections.emptyList();
 
         Map<Integer, Long> livrosPorAno = new HashMap<>();
         livrosPorAno.put(2020, 2L);
@@ -37,5 +36,17 @@ class AcervoStatsTest {
         assertEquals(topAutores,      stats.getTopAutores());
         assertEquals(topEditoras,     stats.getTopEditoras());
         assertEquals(livrosPorAno,    stats.getLivrosPorAno());
+    }
+
+    @Test
+    @DisplayName(
+            "Given a StatEntry," +
+            " when getters are called," +
+            " then nome and total are returned"
+    )
+    void shouldExposeNomeAndTotalViaStatEntry() {
+        StatEntry entry = new StatEntry("Clean Code", 7L);
+        assertEquals("Clean Code", entry.getNome());
+        assertEquals(7L, entry.getTotal());
     }
 }

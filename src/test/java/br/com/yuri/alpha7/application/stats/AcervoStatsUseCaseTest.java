@@ -1,6 +1,7 @@
 package br.com.yuri.alpha7.application.stats;
 
 import br.com.yuri.alpha7.application.UnitOfWork;
+import br.com.yuri.alpha7.application.stats.StatEntry;
 import br.com.yuri.alpha7.domain.livro.repository.LivroRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,8 +19,8 @@ import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
+
 
 @ExtendWith(MockitoExtension.class)
 class AcervoStatsUseCaseTest {
@@ -126,10 +127,10 @@ class AcervoStatsUseCaseTest {
 
         AcervoStats stats = useCase.getAcervo();
 
-        assertEquals("Robert C. Martin", stats.getTopAutores().get(0).getKey());
-        assertEquals(2L,                 stats.getTopAutores().get(0).getValue());
-        assertEquals("Andrew Hunt",      stats.getTopAutores().get(1).getKey());
-        assertEquals(1L,                 stats.getTopAutores().get(1).getValue());
+        assertEquals("Robert C. Martin", stats.getTopAutores().get(0).getNome());
+        assertEquals(2L,                 stats.getTopAutores().get(0).getTotal());
+        assertEquals("Andrew Hunt",      stats.getTopAutores().get(1).getNome());
+        assertEquals(1L,                 stats.getTopAutores().get(1).getTotal());
     }
 
     @Test
@@ -175,9 +176,9 @@ class AcervoStatsUseCaseTest {
         AcervoStats stats = useCase.getAcervo();
 
         long pearsonCount      = stats.getTopEditoras().stream()
-                .filter(e -> "Pearson".equals(e.getKey())).mapToLong(Map.Entry::getValue).sum();
+                .filter(e -> "Pearson".equals(e.getNome())).mapToLong(StatEntry::getTotal).sum();
         long naoInformadoCount = stats.getTopEditoras().stream()
-                .filter(e -> "Não informado".equals(e.getKey())).mapToLong(Map.Entry::getValue).sum();
+                .filter(e -> "Não informado".equals(e.getNome())).mapToLong(StatEntry::getTotal).sum();
 
         assertEquals(1L, pearsonCount);
         assertEquals(1L, naoInformadoCount);
@@ -203,6 +204,26 @@ class AcervoStatsUseCaseTest {
 
         assertEquals(1,  stats.getLivrosPorAno().size());
         assertEquals(1L, stats.getLivrosPorAno().get(2020));
+    }
+
+    @Test
+    @DisplayName(
+            "Given getAcervo was called once," +
+            " when called again within the TTL window," +
+            " then the cached result is returned without querying the repository"
+    )
+    void shouldReturnCachedResultWithinTtl() {
+        when(repository.countAll()).thenReturn(1L);
+        when(repository.countByIdioma()).thenReturn(Collections.emptyMap());
+        when(repository.countByAutor()).thenReturn(Collections.emptyMap());
+        when(repository.countByEditora()).thenReturn(Collections.emptyMap());
+        when(repository.countByAno()).thenReturn(Collections.emptyMap());
+
+        AcervoStats first  = useCase.getAcervo();
+        AcervoStats second = useCase.getAcervo();
+
+        assertSame(first, second);
+        verify(repository, times(1)).countAll();
     }
 
     @Test

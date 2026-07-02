@@ -9,18 +9,40 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Caso de uso responsável por consolidar indicadores do acervo.
+ *
+ * <p>As consultas são executadas dentro de uma unidade de trabalho para manter
+ * a mesma sessão de persistência durante a leitura. O resultado fica em cache
+ * por um curto período para evitar consultas repetidas quando o usuário alterna
+ * entre abas ou pressiona atualizar em sequência.</p>
+ */
 public class AcervoStatsUseCase {
+
+    private static final long CACHE_TTL_MS = 30_000;
 
     private final LivroRepository repository;
     private final UnitOfWork      unitOfWork;
+
+    private volatile AcervoStats cachedStats;
+    private volatile long        cacheTimestamp = 0;
 
     public AcervoStatsUseCase(LivroRepository repository, UnitOfWork unitOfWork) {
         this.repository = repository;
         this.unitOfWork = unitOfWork;
     }
 
+    /**
+     * Retorna o snapshot atual de estatísticas do acervo.
+     *
+     * @return estatísticas agregadas dos livros ativos
+     */
     public AcervoStats getAcervo() {
-        return unitOfWork.execute(() -> {
+        long now = System.currentTimeMillis();
+        if (cachedStats != null && (now - cacheTimestamp) < CACHE_TTL_MS) {
+            return cachedStats;
+        }
+        AcervoStats fresh = unitOfWork.execute(() -> {
             long total = repository.countAll();
 
             Map<String, Long> livrosPorIdioma = new HashMap<>();
@@ -31,21 +53,28 @@ public class AcervoStatsUseCase {
             repository.countByEditora().forEach((nome, count) ->
                     editoraAgrupada.merge(valorOuNaoInformado(nome), count, Long::sum));
 
-            List<Map.Entry<String, Long>> topAutores = repository.countByAutor()
+            List<StatEntry> topAutores = repository.countByAutor()
                     .entrySet().stream()
-                    .sorted(Map.Entry.<String, Long>comparingByValue(Comparator.reverseOrder()))
+                    .sorted(Map.Entry.<String, Long>comparingByValue(Comparator.reverseOrder())
+                            .thenComparing(Map.Entry.comparingByKey()))
                     .limit(5)
+                    .map(e -> new StatEntry(e.getKey(), e.getValue()))
                     .collect(Collectors.toList());
 
-            List<Map.Entry<String, Long>> topEditoras = editoraAgrupada.entrySet().stream()
-                    .sorted(Map.Entry.<String, Long>comparingByValue(Comparator.reverseOrder()))
+            List<StatEntry> topEditoras = editoraAgrupada.entrySet().stream()
+                    .sorted(Map.Entry.<String, Long>comparingByValue(Comparator.reverseOrder())
+                            .thenComparing(Map.Entry.comparingByKey()))
                     .limit(5)
+                    .map(e -> new StatEntry(e.getKey(), e.getValue()))
                     .collect(Collectors.toList());
 
             Map<Integer, Long> livrosPorAno = repository.countByAno();
 
             return new AcervoStats(total, livrosPorIdioma, topAutores, topEditoras, livrosPorAno);
         });
+        cachedStats = fresh;
+        cacheTimestamp = now;
+        return fresh;
     }
 
     private String valorOuNaoInformado(String valor) {

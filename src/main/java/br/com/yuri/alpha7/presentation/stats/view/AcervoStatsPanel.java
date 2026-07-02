@@ -1,6 +1,7 @@
 package br.com.yuri.alpha7.presentation.stats.view;
 
 import br.com.yuri.alpha7.application.stats.AcervoStats;
+import br.com.yuri.alpha7.application.stats.StatEntry;
 
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -23,6 +24,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+
 
 /**
  * Implementação Swing de {@link AcervoStatsView}: painel de estatísticas do acervo.
@@ -140,9 +142,9 @@ public class AcervoStatsPanel extends JPanel implements AcervoStatsView {
                 .forEach(e -> idiomaModel.addRow(new Object[]{e.getKey(), e.getValue()}));
     }
 
-    private void populateRanking(DefaultTableModel model, List<Map.Entry<String, Long>> entries) {
+    private void populateRanking(DefaultTableModel model, List<StatEntry> entries) {
         model.setRowCount(0);
-        entries.forEach(e -> model.addRow(new Object[]{e.getKey(), e.getValue()}));
+        entries.forEach(e -> model.addRow(new Object[]{e.getNome(), e.getTotal()}));
     }
 
     private void populateAnos(Map<Integer, Long> livrosPorAno) {

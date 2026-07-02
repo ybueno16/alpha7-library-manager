@@ -59,8 +59,8 @@ class AcervoStatsUseCaseIntegrationTest extends AbstractRepositoryTest {
 
         AcervoStats stats = useCase.getAcervo();
 
-        assertEquals("Robert C. Martin", stats.getTopAutores().get(0).getKey());
-        assertEquals(2L,                 stats.getTopAutores().get(0).getValue());
+        assertEquals("Robert C. Martin", stats.getTopAutores().get(0).getNome());
+        assertEquals(2L,                 stats.getTopAutores().get(0).getTotal());
     }
 
     @Test
@@ -81,9 +81,9 @@ class AcervoStatsUseCaseIntegrationTest extends AbstractRepositoryTest {
         AcervoStats stats = useCase.getAcervo();
 
         long pearson      = stats.getTopEditoras().stream()
-                .filter(e -> "Prentice Hall".equals(e.getKey())).mapToLong(e -> e.getValue()).sum();
+                .filter(e -> "Prentice Hall".equals(e.getNome())).mapToLong(StatEntry::getTotal).sum();
         long naoInformado = stats.getTopEditoras().stream()
-                .filter(e -> "Não informado".equals(e.getKey())).mapToLong(e -> e.getValue()).sum();
+                .filter(e -> "Não informado".equals(e.getNome())).mapToLong(StatEntry::getTotal).sum();
 
         assertEquals(1L, pearson);
         assertEquals(1L, naoInformado);
